@@ -301,6 +301,24 @@
     <define name="ESTIMATION_FILT_CUTOFF" value="5.0"/>
     <define name="FILT_CUTOFF_R" value="4.0"/>
 
+    <!-- notch filter parameters -->
+    <define name="RB_pitch" value="1.25" />
+    <define name="RB_yaw" value="0.3" />
+    <define name="FU_torsion_1" value="3" />
+
+    <define name="BW_bending_1" value="5.19" />
+    <define name="BW_torsion_1" value="12.19" />
+    <define name="BW_bending_2" value="17.31" />
+    <define name="BW_bending_3" value="24.13" />
+
+    <define name="FW_bending_1" value="6.1" />
+    <define name="FW_torsion_1" value="12.0"/>
+    <define name="FW_bending_2" value="21.69" />
+    <define name="FW_bending_3" value="26.8"/>
+
+    <define name="NOTCH_BANDWIDTH" value="2" />
+
+    
     <!-- first order actuator dynamics -->
     <define name="ACT_DYN_P" value="0.0354"/>
     <define name="ACT_DYN_Q" value="0.0354"/>

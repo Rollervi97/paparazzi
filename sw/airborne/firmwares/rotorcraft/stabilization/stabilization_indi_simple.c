@@ -40,6 +40,7 @@
 #include "paparazzi.h"
 #include "subsystems/radio_control.h"
 #include "filters/low_pass_filter.h"
+#include "filters/notch_filter.h"
 
 #if !defined(STABILIZATION_INDI_ACT_DYN_P) && !defined(STABILIZATION_INDI_ACT_DYN_Q) && !defined(STABILIZATION_INDI_ACT_DYN_R)
 #error You have to define the first order time constant of the actuator dynamics!
@@ -90,6 +91,9 @@
 #define STABILIZATION_INDI_FILT_CUTOFF_R 20.0
 #endif
 
+#ifndef NOTCH_BANDWIDTH
+#define NOTCH_BANDWIDTH 2.0
+
 struct Int32Eulers stab_att_sp_euler;
 struct Int32Quat   stab_att_sp_quat;
 
@@ -105,7 +109,7 @@ struct IndiVariables indi = {
   .cutoff_r = STABILIZATION_INDI_FILT_CUTOFF_R,
   .max_rate = STABILIZATION_INDI_MAX_RATE,
   .attitude_max_yaw_rate = STABILIZATION_INDI_MAX_R,
-
+  .notch_bandwidth = NOTCH_BANDWIDTH,
   .g1 = {STABILIZATION_INDI_G1_P, STABILIZATION_INDI_G1_Q, STABILIZATION_INDI_G1_R},
   .g2 = STABILIZATION_INDI_G2_R,
   .gains = {
@@ -122,7 +126,39 @@ struct IndiVariables indi = {
       STABILIZATION_INDI_REF_RATE_R
     },
   },
+  // Natural frequency of vehicle eigenmotions
+  .natural_frequencies = {
+    .RB = {
+      0,
+      RB_pitch,
+      RB_yaw
+    },
 
+    .FU_T = {
+      FU_torsion_1
+    },
+
+    .BW_B = {
+      BW_bending_1,
+      BW_bending_2,
+      BW_bending_3
+    },
+
+    .BW_T = {
+      BW_torsion_1
+    },
+
+    .FW_B = {
+      FW_bending_1,
+      FW_bending_2,
+      FW_bending_3
+    },
+
+    .FB_T = {
+      FW_torsion_1
+    },
+
+  },
   /* Estimation parameters for adaptive INDI */
   .est = {
     .g1 = {
@@ -212,6 +248,10 @@ void indi_init_filters(void)
   init_first_order_low_pass(&rates_filt_fo[0], time_constants[0], sample_time, stateGetBodyRates_f()->p);
   init_first_order_low_pass(&rates_filt_fo[1], time_constants[1], sample_time, stateGetBodyRates_f()->q);
   init_first_order_low_pass(&rates_filt_fo[2], time_constants[2], sample_time, stateGetBodyRates_f()->r);
+
+  // alcol addition
+  // Init notch filter for yaw vibration in hover condition - cut-off freq for first bending mode of front wing
+  // notch_filter_init(&indi.rate[2], &indi.natural_frequencies.FW_B[0], 2, sample_time);
 }
 
 // Callback function for setting cutoff frequency for r
@@ -295,6 +335,20 @@ static inline void filter_pqr(Butterworth2LowPass *filter, struct FloatRates *ne
 }
 
 /**
+* @brief update notch filter for rates (not 100% sure)
+* 
+* @param n_filter The filter array to use
+* @param nv The new values
+ */
+
+// alcol addition
+// static inline void notch_filter(SecondOrderNotchFilter *n_filter, struct FloatRates *nv)
+// {
+//   notch_filter_update(&n_filter, )
+// }
+
+
+/**
  * @brief Caclulate finite difference form a filter array
  * The filter already contains the previous values
  *
@@ -340,6 +394,9 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   struct FloatRates *body_rates = stateGetBodyRates_f();
   filter_pqr(indi.u, &indi.u_act_dyn);
   filter_pqr(indi.rate, body_rates);
+
+  // alcol addition
+  // notch_filter(indi.rate, body_rates);
 
   // Calculate the derivative of the rates
   finite_difference_from_filter(indi.rate_d, indi.rate);
