@@ -33,17 +33,17 @@ struct SecondOrderNotchFilter {
   float Ts;
   float d2;
   float costheta;
-  int32_t xn1;
-  int32_t xn2;
-  int32_t yn1;
-  int32_t yn2;
+  float xn1;
+  float xn2;
+  float yn1;
+  float yn2;
 };
 
 /** Set sampling frequency of the notch filter
  *
  * @param frequency frequency at which the filter is updated
  */
-static inline void notch_filter_set_sampling_frequency(struct SecondOrderNotchFilter *filter, uint16_t frequency)
+static inline void notch_filter_set_sampling_frequency(struct SecondOrderNotchFilter *filter, float frequency)
 {
   filter->Ts = 1.0/frequency;
 }
@@ -76,7 +76,7 @@ static inline void notch_filter_set_filter_frequency(struct SecondOrderNotchFilt
  * @param input_signal input x[n]
  * @param output_signal output y[n]
  */
-static inline void notch_filter_update(struct SecondOrderNotchFilter *filter, int32_t *input_signal, int32_t *output_signal)
+static inline void notch_filter_update(struct SecondOrderNotchFilter *filter, float *input_signal, float *output_signal)
 {
   float a = (1 + filter->d2) * 0.5;
   float b = (1 + filter->d2) * filter->costheta;
@@ -98,7 +98,7 @@ static inline void notch_filter_update(struct SecondOrderNotchFilter *filter, in
  * @param bandwidth bandwidth of the filter [Hz]
  * @param sample_frequency frequency at which the filter is updated
  */
-static inline void notch_filter_init(struct SecondOrderNotchFilter *filter, float cutoff_frequency, float bandwidth, uint16_t sample_frequency)
+static inline void notch_filter_init(struct SecondOrderNotchFilter *filter, float cutoff_frequency, float bandwidth, float sample_frequency)
 {
   notch_filter_set_sampling_frequency(filter, sample_frequency);
   notch_filter_set_filter_frequency(filter, cutoff_frequency);

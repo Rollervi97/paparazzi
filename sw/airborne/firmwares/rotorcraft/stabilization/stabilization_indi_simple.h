@@ -36,7 +36,7 @@
 
 #include "firmwares/rotorcraft/stabilization/stabilization_attitude_ref_quat_int.h"
 #include "filters/low_pass_filter.h"
-#include "filters/notch_filters.h"
+#include "filters/notch_filter.h"
 
 extern struct Int32Quat   stab_att_sp_quat;  ///< with #INT32_QUAT_FRAC
 extern struct Int32Eulers stab_att_sp_euler; ///< with #INT32_ANGLE_FRAC
@@ -68,6 +68,20 @@ struct IndiVariables {
 
   Butterworth2LowPass u[3];
   Butterworth2LowPass rate[3];
+
+  struct SecondOrderNotchFilter nf;
+
+  float notch_bandwidth;
+  float temp;
+
+  // definig eigenmotion natural frequencies
+  float RB[3];
+  float FU_T;
+  float BW_B[3];
+  float BW_T;
+  float FW_B[3];
+  float FB_T;
+
   struct FloatRates g1;
   float g2;
 

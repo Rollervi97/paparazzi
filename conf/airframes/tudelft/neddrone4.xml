@@ -316,7 +316,7 @@
     <define name="FW_bending_2" value="21.69" />
     <define name="FW_bending_3" value="26.8"/>
 
-    <define name="NOTCH_BANDWIDTH" value="2" />
+    <define name="NOTCH_BANDWIDTH" value="2.0" />
 
     
     <!-- first order actuator dynamics -->

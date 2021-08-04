@@ -110,6 +110,7 @@ struct IndiVariables indi = {
   .max_rate = STABILIZATION_INDI_MAX_RATE,
   .attitude_max_yaw_rate = STABILIZATION_INDI_MAX_R,
   .notch_bandwidth = NOTCH_BANDWIDTH,
+  .twmp = 0,
   .g1 = {STABILIZATION_INDI_G1_P, STABILIZATION_INDI_G1_Q, STABILIZATION_INDI_G1_R},
   .g2 = STABILIZATION_INDI_G2_R,
   .gains = {
@@ -127,38 +128,37 @@ struct IndiVariables indi = {
     },
   },
   // Natural frequency of vehicle eigenmotions
-  .natural_frequencies = {
-    .RB = {
-      0,
-      RB_pitch,
-      RB_yaw
-    },
-
-    .FU_T = {
-      FU_torsion_1
-    },
-
-    .BW_B = {
-      BW_bending_1,
-      BW_bending_2,
-      BW_bending_3
-    },
-
-    .BW_T = {
-      BW_torsion_1
-    },
-
-    .FW_B = {
-      FW_bending_1,
-      FW_bending_2,
-      FW_bending_3
-    },
-
-    .FB_T = {
-      FW_torsion_1
-    },
-
+  
+  .RB = {
+    0,
+    RB_pitch,
+    RB_yaw
   },
+
+  .FU_T = {
+    FU_torsion_1
+  },
+
+  .BW_B = {
+    BW_bending_1,
+    BW_bending_2,
+    BW_bending_3
+  },
+
+  .BW_T = {
+    BW_torsion_1
+  },
+
+  .FW_B = {
+    FW_bending_1,
+    FW_bending_2,
+    FW_bending_3
+  },
+
+  .FB_T = {
+    FW_torsion_1
+  },
+  
   /* Estimation parameters for adaptive INDI */
   .est = {
     .g1 = {
@@ -251,7 +251,7 @@ void indi_init_filters(void)
 
   // alcol addition
   // Init notch filter for yaw vibration in hover condition - cut-off freq for first bending mode of front wing
-  // notch_filter_init(&indi.rate[2], &indi.natural_frequencies.FW_B[0], 2, sample_time);
+  notch_filter_init(&indi.nf, &indi.FW_B[0], indi.notch_bandwidth, sample_time);
 }
 
 // Callback function for setting cutoff frequency for r
@@ -395,8 +395,6 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   filter_pqr(indi.u, &indi.u_act_dyn);
   filter_pqr(indi.rate, body_rates);
 
-  // alcol addition
-  // notch_filter(indi.rate, body_rates);
 
   // Calculate the derivative of the rates
   finite_difference_from_filter(indi.rate_d, indi.rate);
@@ -436,6 +434,11 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   indi.du.p = 1.0 / indi.g1.p * (indi.angular_accel_ref.p - indi.rate_d[0]);
   indi.du.q = 1.0 / indi.g1.q * (indi.angular_accel_ref.q - indi.rate_d[1]);
   indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - indi.rate_d[2] + indi.g2 * indi.du.r);
+
+
+  // Applying notch filter to the the yaw rate increment to avoid structural vibrations
+  notch_filter_update(&indi.nf, &indi.du.r, &indi.temp);
+  indi.du.r = indi.temp;
 
   //Don't increment if thrust is off and on the ground
   //without this the inputs will increment to the maximum before even getting in the air.
