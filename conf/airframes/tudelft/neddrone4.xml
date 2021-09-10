@@ -296,10 +296,10 @@
     <define name="MAX_RATE" value="3.0" unit="rad/s"/>
 
     <!-- second order filter parameters -->
-    <define name="FILT_CUTOFF" value="1.5"/>
-    <define name="FILT_CUTOFF_RDOT" value="0.5"/>
+    <define name="FILT_CUTOFF" value="5.0"/>
+    <define name="FILT_CUTOFF_RDOT" value="5.0"/>
     <define name="ESTIMATION_FILT_CUTOFF" value="5.0"/>
-    <define name="FILT_CUTOFF_R" value="4.0"/>
+    <define name="FILT_CUTOFF_R" value="20.0"/>
 
     <!-- notch filter parameters -->
     <define name="RB_pitch" value="1.25" />

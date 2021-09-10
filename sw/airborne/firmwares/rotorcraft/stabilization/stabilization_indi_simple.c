@@ -42,6 +42,8 @@
 #include "filters/low_pass_filter.h"
 #include "filters/notch_filter.h"
 
+bool use_notch = false;
+
 #if !defined(STABILIZATION_INDI_ACT_DYN_P) && !defined(STABILIZATION_INDI_ACT_DYN_Q) && !defined(STABILIZATION_INDI_ACT_DYN_R)
 #error You have to define the first order time constant of the actuator dynamics!
 #endif
@@ -92,7 +94,52 @@
 #endif
 
 #ifndef NOTCH_BANDWIDTH
-#define NOTCH_BANDWIDTH 2.0
+#define NOTCH_BANDWIDTH 2.0 // to be substituted with one Hz
+#endif
+
+#ifndef RB_pitch
+#define RB_pitch 1.25
+#endif
+
+#ifndef RB_yaw
+#define RB_yaw 0.3
+#endif
+
+#ifndef FU_torsion_1
+#define FU_torsion_1 3.0
+#endif
+
+#ifndef BW_bending_1
+#define BW_bending_1 5.19
+#endif
+
+#ifndef BW_torsion_1
+#define BW_torsion_1 12.19
+#endif
+
+#ifndef BW_bending_2
+#define BW_bending_2 17.31
+#endif
+
+#ifndef BW_bending_3
+#define BW_bending_3 24.13
+#endif
+
+#ifndef FW_bending_1
+#define FW_bending_1 6.1
+#endif
+
+#ifndef FW_torsion_1
+#define FW_torsion_1 12.0
+#endif
+
+#ifndef FW_bending_2
+#define FW_bending_2 21.69
+#endif
+
+#ifndef FW_bending_3
+#define FW_bending_3 26.8
+#endif
 
 struct Int32Eulers stab_att_sp_euler;
 struct Int32Quat   stab_att_sp_quat;
@@ -110,7 +157,7 @@ struct IndiVariables indi = {
   .max_rate = STABILIZATION_INDI_MAX_RATE,
   .attitude_max_yaw_rate = STABILIZATION_INDI_MAX_R,
   .notch_bandwidth = NOTCH_BANDWIDTH,
-  .twmp = 0,
+  .temp = 0,
   .g1 = {STABILIZATION_INDI_G1_P, STABILIZATION_INDI_G1_Q, STABILIZATION_INDI_G1_R},
   .g2 = STABILIZATION_INDI_G2_R,
   .gains = {
@@ -130,14 +177,12 @@ struct IndiVariables indi = {
   // Natural frequency of vehicle eigenmotions
   
   .RB = {
-    0,
+    0.0,
     RB_pitch,
     RB_yaw
   },
 
-  .FU_T = {
-    FU_torsion_1
-  },
+  .FU_T = FU_torsion_1,
 
   .BW_B = {
     BW_bending_1,
@@ -145,9 +190,7 @@ struct IndiVariables indi = {
     BW_bending_3
   },
 
-  .BW_T = {
-    BW_torsion_1
-  },
+  .BW_T = BW_torsion_1,
 
   .FW_B = {
     FW_bending_1,
@@ -155,9 +198,7 @@ struct IndiVariables indi = {
     FW_bending_3
   },
 
-  .FB_T = {
-    FW_torsion_1
-  },
+  .FB_T = FW_torsion_1,
   
   /* Estimation parameters for adaptive INDI */
   .est = {
@@ -251,7 +292,7 @@ void indi_init_filters(void)
 
   // alcol addition
   // Init notch filter for yaw vibration in hover condition - cut-off freq for first bending mode of front wing
-  notch_filter_init(&indi.nf, &indi.FW_B[0], indi.notch_bandwidth, sample_time);
+  notch_filter_init(&indi.nf, indi.FU_T, indi.notch_bandwidth, sample_time);
 }
 
 // Callback function for setting cutoff frequency for r
@@ -438,8 +479,9 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
 
   // Applying notch filter to the the yaw rate increment to avoid structural vibrations
   notch_filter_update(&indi.nf, &indi.du.r, &indi.temp);
-  indi.du.r = indi.temp;
-
+  if (use_notch) {
+    indi.du.r = indi.temp;
+  }
   //Don't increment if thrust is off and on the ground
   //without this the inputs will increment to the maximum before even getting in the air.
   if (stabilization_cmd[COMMAND_THRUST] < 300 && !in_flight) {

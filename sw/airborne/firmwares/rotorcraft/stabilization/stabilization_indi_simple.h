@@ -41,6 +41,8 @@
 extern struct Int32Quat   stab_att_sp_quat;  ///< with #INT32_QUAT_FRAC
 extern struct Int32Eulers stab_att_sp_euler; ///< with #INT32_ANGLE_FRAC
 
+extern bool use_notch;
+
 struct Indi_gains {
   struct FloatRates att;
   struct FloatRates rate;
