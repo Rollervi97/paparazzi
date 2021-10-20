@@ -69,6 +69,8 @@
         <dl_setting var="indi.attitude_max_yaw_rate" min="0" step="0.01" max="400.0" shortname="max_yaw_rate_attitude" param="STABILIZATION_INDI_MAX_R" unit="rad/s" alt_unit="deg/s"/>
         <dl_setting var="indi.cutoff_r" min="0.2" step="0.1" max="30.0" shortname="r_cutoff_hz" handler="reset_r_filter_cutoff" type="float" module="stabilization/stabilization_indi_simple"/>
         <dl_setting var="use_notch" min="0" step="1" max="1" shortname="notch" values="OFF|ON" persistent="true"/>
+        <dl_setting var="start_chirp" min="0" step="1" max="1" shortname="chirp" values="OFF|ON" persistent="true"/>
+<!--        <dl_setting var="chirp_in.f0_hz" min="0.1" step="0.1" max="3" shortname="fmin_chirp" param="STABILIZATION_INDI_G1_P" persistent="true"/>-->
       </dl_settings>
     </dl_settings>
   </settings>
