@@ -94,7 +94,7 @@ bool use_notch = false;
 #endif
 
 #ifndef NOTCH_BANDWIDTH
-#define NOTCH_BANDWIDTH 2.0 // to be substituted with one Hz
+#define NOTCH_BANDWIDTH 1.0 // to be substituted with one Hz
 #endif
 
 #ifndef RB_pitch
@@ -227,7 +227,7 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
   struct FloatRates g1_disp;
   RATES_SMUL(g1_disp, indi.est.g1, INDI_EST_SCALE);
   float g2_disp = indi.est.g2 * INDI_EST_SCALE;
-
+  // is it possible to add fields to this message? Are there any downsides?
   pprz_msg_send_STAB_ATTITUDE_INDI(trans, dev, AC_ID,
                                    &indi.rate_d[0],
                                    &indi.rate_d[1],
@@ -462,7 +462,7 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
 
   //This lets you impose a maximum yaw rate.
   BoundAbs(rate_sp.r, indi.attitude_max_yaw_rate);
-
+  
   // Compute reference angular acceleration:
   indi.angular_accel_ref.p = (rate_sp.p - rates_filt.p) * indi.gains.rate.p;
   indi.angular_accel_ref.q = (rate_sp.q - rates_filt.q) * indi.gains.rate.q;
@@ -495,6 +495,8 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
     //add the increment to the total control input
     indi.u_in.p = indi.u[0].o[0] + indi.du.p;
     indi.u_in.q = indi.u[1].o[0] + indi.du.q;
+
+    // indi.u_in.r = ((rand() % 200 ) - 100) / 100;
     indi.u_in.r = indi.u[2].o[0] + indi.du.r;
 
     // only run the estimation if the commands are not zero.
