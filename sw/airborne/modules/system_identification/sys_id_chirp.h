@@ -63,6 +63,7 @@ extern void sys_id_chirp_activate_handler(uint8_t activate); // Activate the chi
 extern void sys_id_chirp_axis_handler(uint8_t axis); // Check if new axis is valid
 extern void sys_id_chirp_fstart_handler(float fstart); // Check if fstart is lower than current fend
 extern void sys_id_chirp_fstop_handler(float fstop); // Check if fend is higher than current fstart
+extern uint8_t sys_id_chirp_running(void); // Check if the chirp is running or not
 
 // Add the current chirp values to the in_cmd values if motors_on is true
 extern void sys_id_chirp_add_values(bool motors_on, bool override_on, pprz_t in_cmd[]);

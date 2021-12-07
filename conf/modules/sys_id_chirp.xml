@@ -26,7 +26,8 @@
 
     Add the message "CHIRP" to your telemetry to see chirp progress, and to your logger to automatically filter chirps in post-processing.
     </description>
-    <define name="CHIRP_AXES"        value="{COMMAND_ROLL,COMMAND_PITCH,COMMAND_YAW}" description="Which axes the chirp is applied to (specify as array with {})"/>
+    <define name="CHIRP_AXES"        value="{COMMAND_ROLL,COMMAND_PITCH,COMMAND_YAW,COMMAND_THRUST}" description="Which axes the chirp is applied to (specify as array with {})"/>
+    <!-- <define name="CHIRP_AXES"        value="{COMMAND_ROLL,COMMAND_PITCH,COMMAND_YAW}" description="Which axes the chirp is applied to (specify as array with {})"/> -->
     <define name="CHIRP_ENABLED"     value="TRUE|FALSE"  description="If false, the chirp does not run and values are not added"/>
     <define name="CHIRP_USE_NOISE"   value="TRUE|FALSE"  description="If true, add noise to all axes (also the axes where no chirp is active)"/>
     <define name="CHIRP_EXPONENTIAL" value="TRUE|FALSE"  description="If true, exponential-time chirp. Else, linear-time chirp"/>
