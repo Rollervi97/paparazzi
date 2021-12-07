@@ -49,6 +49,7 @@
 
 static struct doublet_t doublet;
 uint8_t doublet_active = false;
+uint8_t doublet_mode_3211 = false;
 uint8_t doublet_axis = 0;
 pprz_t doublet_amplitude = 0;
 float doublet_length_s = 20;
@@ -112,6 +113,12 @@ extern void sys_id_doublet_axis_handler(uint8_t axis)
     }
 }
 
+extern void sys_id_mod3211_handler(uint8_t mode){
+    doublet_mode_3211 = mode;
+    if (doublet_mode_3211){
+        DOUBLET_MOD3211 = true;
+    }else{DOUBLET_MOD3211 = false;}
+}
 void sys_id_doublet_init(void)
 {
     doublet_init(&doublet, doublet_length_s, doublet_extra_waiting_time_s, doublet_length_s, get_sys_time_float(), DOUBLET_MOD3211);

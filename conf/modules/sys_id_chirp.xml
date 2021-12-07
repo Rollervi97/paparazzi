@@ -2,7 +2,7 @@
 
 <module name="sys_id_chirp" dir="system_identification">
   <doc>
-    <description>Chirp maneuver for system itentification.
+    <description>Chirp maneuver for system identification.
     The chirp is a sine wave with frequency increasing constantly in time. It's a good candidate as input for system identification
     since it covers a broad frequency spectrum. This module automates performance of the chirp and exposes an easy interface
     for tailoring the maneuver to your specific aircraft.
