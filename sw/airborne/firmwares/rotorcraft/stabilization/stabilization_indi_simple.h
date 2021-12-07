@@ -37,13 +37,15 @@
 #include "firmwares/rotorcraft/stabilization/stabilization_attitude_ref_quat_int.h"
 #include "filters/low_pass_filter.h"
 #include "filters/notch_filter.h"
-#include "modules/system_identification/pprz_chirp.h"
+#include "modules/system_identification/sys_id_chirp.h"
 
 extern struct Int32Quat   stab_att_sp_quat;  ///< with #INT32_QUAT_FRAC
 extern struct Int32Eulers stab_att_sp_euler; ///< with #INT32_ANGLE_FRAC
 
 extern bool use_notch;
-extern bool start_chirp;
+// extern bool start_chirp;
+// extern bool stop_chirp;
+extern float chirp_scaling_factor;
 
 extern struct chirp_t chirp_in;
 

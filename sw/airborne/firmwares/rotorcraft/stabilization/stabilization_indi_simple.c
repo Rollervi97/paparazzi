@@ -41,11 +41,12 @@
 #include "subsystems/radio_control.h"
 #include "filters/low_pass_filter.h"
 #include "filters/notch_filter.h"
-#include "modules/system_identification/pprz_chirp.h"
+#include "modules/system_identification/sys_id_chirp.h"
 
 bool use_notch = false;
 
-bool start_chirp = false;
+// bool start_chirp = false;
+// bool stop_chirp = false;
 
 #if !defined(STABILIZATION_INDI_ACT_DYN_P) && !defined(STABILIZATION_INDI_ACT_DYN_Q) && !defined(STABILIZATION_INDI_ACT_DYN_R)
 #error You have to define the first order time constant of the actuator dynamics!
@@ -147,7 +148,8 @@ bool start_chirp = false;
 struct Int32Eulers stab_att_sp_euler;
 struct Int32Quat   stab_att_sp_quat;
 
-struct chirp_t chirp_in;
+// struct chirp_t chirp_in;
+float chirp_scaling_factor = 450.0;
 
 static struct FirstOrderLowPass rates_filt_fo[3];
 
@@ -265,7 +267,7 @@ void stabilization_indi_init(void)
 {
   // Initialize filters
   indi_init_filters();
-  chirp_init(&chirp_in, 0.1, 100, 20.0, -1, false, false)
+  // chirp_init(&chirp_in, 0.1, 20.0, 20.0, -1, false, false);
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_STAB_ATTITUDE_INDI, send_att_indi);
@@ -426,13 +428,15 @@ static inline void finite_difference(float output[3], float new[3], float old[3]
  */
 void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __attribute__((unused)))
 {
-    if start_chirp {
-        chirp_reset(&chirp_in, get_sys_time_float());
-    }
+  // chirp code
+    // if (start_chirp){
+    //     chirp_init(&chirp_in, 0.1, 20.0, 20.0, get_sys_time_float(), false, false);
+    //     chirp_reset(&chirp_in, get_sys_time_float());
+    // }
 
-    if chirp_is_running(&chirp_in, get_sys_time_float(){
-        chirp_update(&chirp_in, get_sys_time_float());
-    }
+    // if (chirp_is_running(&chirp_in, get_sys_time_float())){
+    //     chirp_update(&chirp_in, get_sys_time_float());
+    // }
   //Propagate input filters
   //first order actuator dynamics
   indi.u_act_dyn.p = indi.u_act_dyn.p + STABILIZATION_INDI_ACT_DYN_P * (indi.u_in.p - indi.u_act_dyn.p);
@@ -505,12 +509,14 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
     indi.u_in.p = indi.u[0].o[0] + indi.du.p;
     indi.u_in.q = indi.u[1].o[0] + indi.du.q;
 
-    if (chirp_is_running(&chirp_in, get_sys_time_float())) {
-//    indi.u_in.r = ((rand() % 200 ) - 100) / 100;
-    indi.u_in.r = chirp_in.current_value * scaling_factor;
+    if (sys_id_chirp_running())
+    {
+      indi.u_in.r = 0.0;
+    } 
+    else 
+    {
+    indi.u_in.r = indi.u[2].o[0] + indi.du.r;
     }
-    else{
-    indi.u_in.r = indi.u[2].o[0] + indi.du.r;}
 
     // only run the estimation if the commands are not zero.
     lms_estimation();

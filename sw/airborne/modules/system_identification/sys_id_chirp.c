@@ -36,7 +36,7 @@
 
 
 #ifndef CHIRP_AXES
-#define CHIRP_AXES {COMMAND_ROLL,COMMAND_PITCH,COMMAND_YAW}
+#define CHIRP_AXES {COMMAND_ROLL,COMMAND_PITCH,COMMAND_YAW,COMMAND_THRUST}
 #endif
 
 #ifndef CHIRP_ENABLED
@@ -129,6 +129,11 @@ void sys_id_chirp_activate_handler(uint8_t activate)
   } else {
     stop_chirp();
   }
+}
+
+uint8_t sys_id_chirp_running(void)
+{
+  return chirp_active;
 }
 
 extern void sys_id_chirp_axis_handler(uint8_t axis)

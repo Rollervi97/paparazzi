@@ -62,6 +62,7 @@
       <define name="RADIO_KILL_SWITCH" value="0"/>
     </target>
 
+
     <module name="telemetry"     type="transparent">
       <configure name="MODEM_BAUD" value="B115200"/>
     </module>
@@ -79,6 +80,8 @@
     
     <module name="air_data"/>
     <module name="send_imu_mag_current"/>
+    <module name="sys_id_chirp"/>
+
 
     <!-- Internal MAG -->
     <!--module name="mag_ist8310">
@@ -175,6 +178,7 @@
   </section>
 
   <command_laws>
+    <call fun="sys_id_chirp_add_values(autopilot_get_motors_on(),FALSE,values)"/>
     <call fun="motor_mixing_run(autopilot_get_motors_on(),FALSE,values)"/>
     <let var="th_hold"     value="LessThan(RadioControlValues(RADIO_TH_HOLD), -4800)"/>
 
