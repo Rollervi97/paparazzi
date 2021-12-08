@@ -39,6 +39,14 @@
 #include "generated/airframe.h"
 #include "paparazzi.h"
 #include "subsystems/radio_control.h"
+#include "filters/low_pass_filter.h"
+#include "filters/notch_filter.h"
+#include "modules/system_identification/sys_id_chirp.h"
+
+bool use_notch = false;
+
+// bool start_chirp = false;
+// bool stop_chirp = false;
 
 #if !defined(STABILIZATION_INDI_ACT_DYN_P) && !defined(STABILIZATION_INDI_ACT_DYN_Q) && !defined(STABILIZATION_INDI_ACT_DYN_R)
 #error You have to define the first order time constant of the actuator dynamics!
@@ -51,8 +59,8 @@
 #endif
 
 // the yaw sometimes requires more filtering
-#ifndef STABILIZATION_INDI_FILT_CUTOFF_R
-#define STABILIZATION_INDI_FILT_CUTOFF_R STABILIZATION_INDI_FILT_CUTOFF
+#ifndef STABILIZATION_INDI_FILT_CUTOFF_RDOT
+#define STABILIZATION_INDI_FILT_CUTOFF_RDOT STABILIZATION_INDI_FILT_CUTOFF
 #endif
 
 #ifndef STABILIZATION_INDI_MAX_RATE
@@ -71,10 +79,79 @@
 #define STABILIZATION_INDI_ESTIMATION_FILT_CUTOFF 4.0
 #endif
 
+#ifdef STABILIZATION_INDI_FILT_CUTOFF_P
+#define STABILIZATION_INDI_FILTER_ROLL_RATE TRUE
+#else
+#define STABILIZATION_INDI_FILT_CUTOFF_P 20.0
+#endif
+
+#ifdef STABILIZATION_INDI_FILT_CUTOFF_Q
+#define STABILIZATION_INDI_FILTER_PITCH_RATE TRUE
+#else
+#define STABILIZATION_INDI_FILT_CUTOFF_Q 20.0
+#endif
+
+#ifdef STABILIZATION_INDI_FILT_CUTOFF_R
+#define STABILIZATION_INDI_FILTER_YAW_RATE TRUE
+#else
+#define STABILIZATION_INDI_FILT_CUTOFF_R 20.0
+#endif
+
+#ifndef NOTCH_BANDWIDTH
+#define NOTCH_BANDWIDTH 1.0 // to be substituted with one Hz
+#endif
+
+#ifndef RB_pitch
+#define RB_pitch 1.25
+#endif
+
+#ifndef RB_yaw
+#define RB_yaw 0.3
+#endif
+
+#ifndef FU_torsion_1
+#define FU_torsion_1 3.0
+#endif
+
+#ifndef BW_bending_1
+#define BW_bending_1 5.19
+#endif
+
+#ifndef BW_torsion_1
+#define BW_torsion_1 12.19
+#endif
+
+#ifndef BW_bending_2
+#define BW_bending_2 17.31
+#endif
+
+#ifndef BW_bending_3
+#define BW_bending_3 24.13
+#endif
+
+#ifndef FW_bending_1
+#define FW_bending_1 6.1
+#endif
+
+#ifndef FW_torsion_1
+#define FW_torsion_1 12.0
+#endif
+
+#ifndef FW_bending_2
+#define FW_bending_2 21.69
+#endif
+
+#ifndef FW_bending_3
+#define FW_bending_3 26.8
+#endif
+
 struct Int32Eulers stab_att_sp_euler;
 struct Int32Quat   stab_att_sp_quat;
 
-struct FloatRates rates_filt_fo;
+// struct chirp_t chirp_in;
+float chirp_scaling_factor = 450.0;
+
+static struct FirstOrderLowPass rates_filt_fo[3];
 
 static inline void lms_estimation(void);
 static void indi_init_filters(void);
@@ -83,24 +160,53 @@ static void indi_init_filters(void);
 #define INDI_EST_SCALE 0.001
 
 struct IndiVariables indi = {
+  .cutoff_r = STABILIZATION_INDI_FILT_CUTOFF_R,
   .max_rate = STABILIZATION_INDI_MAX_RATE,
   .attitude_max_yaw_rate = STABILIZATION_INDI_MAX_R,
-
+  .notch_bandwidth = NOTCH_BANDWIDTH,
+  .temp = 0,
   .g1 = {STABILIZATION_INDI_G1_P, STABILIZATION_INDI_G1_Q, STABILIZATION_INDI_G1_R},
   .g2 = STABILIZATION_INDI_G2_R,
   .gains = {
     .att = {
+      //STABILIZATION_INDI_REF_ERR_P,
       STABILIZATION_INDI_REF_ERR_P,
       STABILIZATION_INDI_REF_ERR_Q,
       STABILIZATION_INDI_REF_ERR_R
     },
     .rate = {
+//      STABILIZATION_INDI_REF_RATE_P,
       STABILIZATION_INDI_REF_RATE_P,
       STABILIZATION_INDI_REF_RATE_Q,
       STABILIZATION_INDI_REF_RATE_R
     },
   },
+  // Natural frequency of vehicle eigenmotions
+  
+  .RB = {
+    0.0,
+    RB_pitch,
+    RB_yaw
+  },
 
+  .FU_T = FU_torsion_1,
+
+  .BW_B = {
+    BW_bending_1,
+    BW_bending_2,
+    BW_bending_3
+  },
+
+  .BW_T = BW_torsion_1,
+
+  .FW_B = {
+    FW_bending_1,
+    FW_bending_2,
+    FW_bending_3
+  },
+
+  .FB_T = FW_torsion_1,
+  
   /* Estimation parameters for adaptive INDI */
   .est = {
     .g1 = {
@@ -128,7 +234,7 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
   struct FloatRates g1_disp;
   RATES_SMUL(g1_disp, indi.est.g1, INDI_EST_SCALE);
   float g2_disp = indi.est.g2 * INDI_EST_SCALE;
-
+  // is it possible to add fields to this message? Are there any downsides?
   pprz_msg_send_STAB_ATTITUDE_INDI(trans, dev, AC_ID,
                                    &indi.rate_d[0],
                                    &indi.rate_d[1],
@@ -161,6 +267,7 @@ void stabilization_indi_init(void)
 {
   // Initialize filters
   indi_init_filters();
+  // chirp_init(&chirp_in, 0.1, 20.0, 20.0, -1, false, false);
 
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_STAB_ATTITUDE_INDI, send_att_indi);
@@ -172,8 +279,8 @@ void indi_init_filters(void)
 {
   // tau = 1/(2*pi*Fc)
   float tau = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_FILT_CUTOFF);
-  float tau_r = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_FILT_CUTOFF_R);
-  float tau_axis[3] = {tau, tau, tau_r};
+  float tau_rdot = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_FILT_CUTOFF_RDOT);
+  float tau_axis[3] = {tau, tau, tau_rdot};
   float tau_est = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_ESTIMATION_FILT_CUTOFF);
   float sample_time = 1.0 / PERIODIC_FREQUENCY;
   // Filtering of gyroscope and actuators
@@ -183,8 +290,25 @@ void indi_init_filters(void)
     init_butterworth_2_low_pass(&indi.est.u[i], tau_est, sample_time, 0.0);
     init_butterworth_2_low_pass(&indi.est.rate[i], tau_est, sample_time, 0.0);
   }
+
   // Init rate filter for feedback
-  RATES_COPY(rates_filt_fo, (*stateGetBodyRates_f()));
+  float time_constants[3] = {1.0/(2 * M_PI * STABILIZATION_INDI_FILT_CUTOFF_P), 1.0/(2 * M_PI * STABILIZATION_INDI_FILT_CUTOFF_Q), 1.0/(2 * M_PI * STABILIZATION_INDI_FILT_CUTOFF_R)};
+
+  init_first_order_low_pass(&rates_filt_fo[0], time_constants[0], sample_time, stateGetBodyRates_f()->p);
+  init_first_order_low_pass(&rates_filt_fo[1], time_constants[1], sample_time, stateGetBodyRates_f()->q);
+  init_first_order_low_pass(&rates_filt_fo[2], time_constants[2], sample_time, stateGetBodyRates_f()->r);
+
+  // alcol addition
+  // Init notch filter for yaw vibration in hover condition - cut-off freq for first bending mode of front wing
+  notch_filter_init(&indi.nf, indi.FU_T, indi.notch_bandwidth, sample_time);
+}
+
+// Callback function for setting cutoff frequency for r
+void stabilization_indi_simple_reset_r_filter_cutoff(float new_cutoff) {
+  float sample_time = 1.0 / PERIODIC_FREQUENCY;
+  indi.cutoff_r = new_cutoff;
+  float time_constant = 1.0/(2.0 * M_PI * indi.cutoff_r);
+  init_first_order_low_pass(&rates_filt_fo[2], time_constant, sample_time, stateGetBodyRates_f()->r);
 }
 
 void stabilization_indi_enter(void)
@@ -260,6 +384,15 @@ static inline void filter_pqr(Butterworth2LowPass *filter, struct FloatRates *ne
 }
 
 /**
+* @brief update notch filter for rates (not 100% sure)
+* 
+* @param n_filter The filter array to use
+* @param nv The new values
+ */
+
+
+
+/**
  * @brief Caclulate finite difference form a filter array
  * The filter already contains the previous values
  *
@@ -295,6 +428,15 @@ static inline void finite_difference(float output[3], float new[3], float old[3]
  */
 void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __attribute__((unused)))
 {
+  // chirp code
+    // if (start_chirp){
+    //     chirp_init(&chirp_in, 0.1, 20.0, 20.0, get_sys_time_float(), false, false);
+    //     chirp_reset(&chirp_in, get_sys_time_float());
+    // }
+
+    // if (chirp_is_running(&chirp_in, get_sys_time_float())){
+    //     chirp_update(&chirp_in, get_sys_time_float());
+    // }
   //Propagate input filters
   //first order actuator dynamics
   indi.u_act_dyn.p = indi.u_act_dyn.p + STABILIZATION_INDI_ACT_DYN_P * (indi.u_in.p - indi.u_act_dyn.p);
@@ -306,36 +448,37 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   filter_pqr(indi.u, &indi.u_act_dyn);
   filter_pqr(indi.rate, body_rates);
 
+
   // Calculate the derivative of the rates
   finite_difference_from_filter(indi.rate_d, indi.rate);
 
-  //The rates used for feedback are by default the measured rates. If needed they can be filtered (see below)
-
+  //The rates used for feedback are by default the measured rates.
   //If there is a lot of noise on the gyroscope, it might be good to use the filtered value for feedback.
-  //Note that due to the delay, the PD controller can not be as aggressive.
+  //Note that due to the delay, the PD controller may need relaxed gains.
+  struct FloatRates rates_filt;
 #if STABILIZATION_INDI_FILTER_ROLL_RATE
-  rates_filt_fo.p = (rates_filt_fo.p*3+body_rates->p)/4;
+  rates_filt.p = update_first_order_low_pass(&rates_filt_fo[0], body_rates->p);
 #else
-  rates_filt_fo.p = body_rates->p;
+  rates_filt.p = body_rates->p;
 #endif
 #if STABILIZATION_INDI_FILTER_PITCH_RATE
-  rates_filt_fo.q = (rates_filt_fo.q*3+body_rates->q)/4;
+  rates_filt.q = update_first_order_low_pass(&rates_filt_fo[1], body_rates->q);
 #else
-  rates_filt_fo.q = body_rates->q;
+  rates_filt.q = body_rates->q;
 #endif
 #if STABILIZATION_INDI_FILTER_YAW_RATE
-  rates_filt_fo.r = (rates_filt_fo.r*3+body_rates->r)/4;
+  rates_filt.r = update_first_order_low_pass(&rates_filt_fo[2], body_rates->r);
 #else
-  rates_filt_fo.r = body_rates->r;
+  rates_filt.r = body_rates->r;
 #endif
 
-  //This separates the P and D controller and lets you impose a maximum yaw rate.
+  //This lets you impose a maximum yaw rate.
   BoundAbs(rate_sp.r, indi.attitude_max_yaw_rate);
-
+  
   // Compute reference angular acceleration:
-  indi.angular_accel_ref.p = (rate_sp.p - rates_filt_fo.p) * indi.gains.rate.p;
-  indi.angular_accel_ref.q = (rate_sp.q - rates_filt_fo.q) * indi.gains.rate.q;
-  indi.angular_accel_ref.r = (rate_sp.r - rates_filt_fo.r) * indi.gains.rate.r;
+  indi.angular_accel_ref.p = (rate_sp.p - rates_filt.p) * indi.gains.rate.p;
+  indi.angular_accel_ref.q = (rate_sp.q - rates_filt.q) * indi.gains.rate.q;
+  indi.angular_accel_ref.r = (rate_sp.r - rates_filt.r) * indi.gains.rate.r;
 
   //Increment in angular acceleration requires increment in control input
   //G1 is the control effectiveness. In the yaw axis, we need something additional: G2.
@@ -343,14 +486,21 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   //(they have significant inertia, see the paper mentioned in the header for more explanation)
   indi.du.p = 1.0 / indi.g1.p * (indi.angular_accel_ref.p - indi.rate_d[0]);
   indi.du.q = 1.0 / indi.g1.q * (indi.angular_accel_ref.q - indi.rate_d[1]);
+//  indi.du.r = chirp_in->current_value * scaling factor
   indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - indi.rate_d[2] + indi.g2 * indi.du.r);
 
+
+  // Applying notch filter to the the yaw rate increment to avoid structural vibrations
+  notch_filter_update(&indi.nf, &indi.du.r, &indi.temp);
+  if (use_notch) {
+    indi.du.r = indi.temp;
+  }
   //Don't increment if thrust is off and on the ground
   //without this the inputs will increment to the maximum before even getting in the air.
   if (stabilization_cmd[COMMAND_THRUST] < 300 && !in_flight) {
     FLOAT_RATES_ZERO(indi.u_in);
 
-    // If on the gournd, no increments, just proportional control
+    // If on the ground, no increments, just proportional control
     indi.u_in.p = indi.du.p;
     indi.u_in.q = indi.du.q;
     indi.u_in.r = indi.du.r;
@@ -358,7 +508,15 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
     //add the increment to the total control input
     indi.u_in.p = indi.u[0].o[0] + indi.du.p;
     indi.u_in.q = indi.u[1].o[0] + indi.du.q;
+
+    if (sys_id_chirp_running())
+    {
+      indi.u_in.r = 0.0;
+    } 
+    else 
+    {
     indi.u_in.r = indi.u[2].o[0] + indi.du.r;
+    }
 
     // only run the estimation if the commands are not zero.
     lms_estimation();

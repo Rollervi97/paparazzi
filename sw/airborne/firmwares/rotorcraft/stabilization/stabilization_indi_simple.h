@@ -36,9 +36,18 @@
 
 #include "firmwares/rotorcraft/stabilization/stabilization_attitude_ref_quat_int.h"
 #include "filters/low_pass_filter.h"
+#include "filters/notch_filter.h"
+#include "modules/system_identification/sys_id_chirp.h"
 
 extern struct Int32Quat   stab_att_sp_quat;  ///< with #INT32_QUAT_FRAC
 extern struct Int32Eulers stab_att_sp_euler; ///< with #INT32_ANGLE_FRAC
+
+extern bool use_notch;
+// extern bool start_chirp;
+// extern bool stop_chirp;
+extern float chirp_scaling_factor;
+
+extern struct chirp_t chirp_in;
 
 struct Indi_gains {
   struct FloatRates att;
@@ -58,6 +67,7 @@ struct IndiEstimation {
 };
 
 struct IndiVariables {
+  float cutoff_r;
   struct FloatRates angular_accel_ref;
   struct FloatRates du;
   struct FloatRates u_in;
@@ -66,6 +76,22 @@ struct IndiVariables {
 
   Butterworth2LowPass u[3];
   Butterworth2LowPass rate[3];
+//  Butterworth2LowPass whitenoise;
+
+//  struct chirp_z chirp_in;
+
+  struct SecondOrderNotchFilter nf;
+  float notch_bandwidth;
+  float temp;
+
+  // definig eigenmotion natural frequencies
+  float RB[3];
+  float FU_T;
+  float BW_B[3];
+  float BW_T;
+  float FW_B[3];
+  float FB_T;
+
   struct FloatRates g1;
   float g2;
 
@@ -87,6 +113,7 @@ extern void stabilization_indi_set_earth_cmd_i(struct Int32Vect2 *cmd, int32_t h
 extern void stabilization_indi_rate_run(struct FloatRates rates_sp, bool in_flight);
 extern void stabilization_indi_attitude_run(struct Int32Quat quat_sp, bool in_flight);
 extern void stabilization_indi_read_rc(bool in_flight, bool in_carefree, bool coordinated_turn);
+extern void stabilization_indi_simple_reset_r_filter_cutoff(float new_cutoff);
 
 #endif /* STABILIZATION_INDI_SIMPLE_H */
 

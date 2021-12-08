@@ -65,6 +65,7 @@ static void file_logger_write_header(FILE *file) {
   fprintf(file, "time,");
   fprintf(file, "pos_x,pos_y,pos_z,");
   fprintf(file, "vel_x,vel_y,vel_z,");
+  fprintf(file, "acc_x,acc_y,acc_z,");
   fprintf(file, "att_phi,att_theta,att_psi,");
   fprintf(file, "rate_p,rate_q,rate_r,");
 #ifdef COMMAND_THRUST
@@ -83,12 +84,14 @@ static void file_logger_write_header(FILE *file) {
 static void file_logger_write_row(FILE *file) {
   struct NedCoor_f *pos = stateGetPositionNed_f();
   struct NedCoor_f *vel = stateGetSpeedNed_f();
+  struct NedCoor_f *acc = stateGetAccelNed_f();
   struct FloatEulers *att = stateGetNedToBodyEulers_f();
   struct FloatRates *rates = stateGetBodyRates_f();
 
   fprintf(file, "%f,", get_sys_time_float());
   fprintf(file, "%f,%f,%f,", pos->x, pos->y, pos->z);
   fprintf(file, "%f,%f,%f,", vel->x, vel->y, vel->z);
+  fprintf(file, "%f,%f,%f,", acc->x, acc->y, acc->z);
   fprintf(file, "%f,%f,%f,", att->phi, att->theta, att->psi);
   fprintf(file, "%f,%f,%f,", rates->p, rates->q, rates->r);
 #ifdef COMMAND_THRUST
