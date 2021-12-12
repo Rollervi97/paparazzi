@@ -31,40 +31,40 @@
 #include "subsystems/datalink/telemetry.h"
 #include "generated/airframe.h"
 #include "mcu_periph/sys_time.h"
-#include "filters/low_pass_filter.h"
-#include "math/pprz_random.h"
 
 #ifndef DOUBLET_AXES
-#define DOUBLET_AXES {COMMAND_ROLL,COMMAND_PITCH,COMMAND_YAW}
+#define DOUBLET_AXES {COMMAND_ROLL,COMMAND_PITCH,COMMAND_YAW,COMMAND_THRUST}
 #endif
 
 #ifndef DOUBLET_ENABLED
 #define DOUBLET_ENABLED TRUE
 #endif
 
-#ifndef DOUBLET_MOD3211
-#define DOUBLET_MOD3211 FALSE
-#endif
 
 
 static struct doublet_t doublet;
+
 uint8_t doublet_active = false;
 uint8_t doublet_mode_3211 = false;
+
 uint8_t doublet_axis = 0;
+
 pprz_t doublet_amplitude = 0;
-float doublet_length_s = 20;
-float doublet_extra_waiting_time_s = 5;
+float doublet_length_s = 20.0f;
+float doublet_extra_waiting_time_s = 5.0f;
+
 
 
 static const int8_t ACTIVE_DOUBLET_AXES[] = DOUBLET_AXES;
 #define DOUBLET_NB_AXES sizeof ACTIVE_DOUBLET_AXES / sizeof ACTIVE_DOUBLET_AXES[0] // Number of items in ACTIVE_DOUBLET_AXES
 
-static pprz_t current_doublet_values[doublet_NB_AXES];
+static pprz_t current_doublet_values[DOUBLET_NB_AXES];
 
 static void set_current_doublet_values(void)
 {
     if (doublet_active) {
-        current_doublet_values[doublet_axis] += (int32_t)(doublet_amplitude * doublet.current_value);
+        current_doublet_values[doublet_axis] = (int32_t)(doublet_amplitude * doublet.current_value);
+        
     } else {
         for (uint8_t i = 0; i < DOUBLET_NB_AXES; i++) {
             current_doublet_values[i] = 0;
@@ -74,11 +74,8 @@ static void set_current_doublet_values(void)
 
 static void send_doublet(struct transport_tx *trans, struct link_device *dev){
     pprz_msg_send_DOUBLET(trans, dev, AC_ID, &doublet_active,
-                        &doublet_axis, &doublet_amplitude);
-    //                      &current_doublet_values[0],
-    //                      &current_doublet_values[1],
-    //                      &current_doublet_values[2],
-    //                      &current_doublet_values[3],
+                        &doublet_axis, &doublet_amplitude,
+                        &current_doublet_values[doublet_axis], &doublet_mode_3211);
 }
 
 static void start_doublet(void)
@@ -95,33 +92,35 @@ static void stop_doublet(void)
     set_current_doublet_values();
 }
 
+uint8_t sys_id_doublet_running(void){
+    return doublet_active;
+}
+
 void sys_id_doublet_activate_handler(uint8_t activate)
 {
     doublet_active = activate;
     if (doublet_active) {
-        doublet_init(&doublet, doublet_length_s, doublet_extra_waiting_time_s, doublet_length_s, get_sys_time_float(), DOUBLET_MOD3211);
+        doublet_init(&doublet, doublet_length_s, doublet_extra_waiting_time_s, get_sys_time_float(), doublet_mode_3211);
         start_doublet();
     } else {
         stop_doublet();
     }
 }
 
-extern void sys_id_doublet_axis_handler(uint8_t axis)
+void sys_id_doublet_axis_handler(uint8_t axis)
 {
     if (axis < DOUBLET_NB_AXES) {
         doublet_axis = axis;
     }
 }
 
-extern void sys_id_mod3211_handler(uint8_t mode){
+void sys_id_doublet_mod3211_handler(uint8_t mode){
     doublet_mode_3211 = mode;
-    if (doublet_mode_3211){
-        DOUBLET_MOD3211 = true;
-    }else{DOUBLET_MOD3211 = false;}
 }
+
 void sys_id_doublet_init(void)
 {
-    doublet_init(&doublet, doublet_length_s, doublet_extra_waiting_time_s, doublet_length_s, get_sys_time_float(), DOUBLET_MOD3211);
+    doublet_init(&doublet, doublet_length_s, doublet_extra_waiting_time_s, get_sys_time_float(), doublet_mode_3211);
 
     set_current_doublet_values();
     register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_DOUBLET, send_doublet);
@@ -135,8 +134,6 @@ void sys_id_doublet_init(void)
 
 void sys_id_doublet_run(void)
 {
-#if DOUBLET_ENABLED
-
     if (doublet_active) {
         if (!doublet_is_running(&doublet, get_sys_time_float())) {
             stop_doublet();
@@ -146,7 +143,7 @@ void sys_id_doublet_run(void)
         }
     }
     
-#endif
+
 }
 
 void sys_id_doublet_add_values(bool motors_on, bool override_on, pprz_t in_cmd[])

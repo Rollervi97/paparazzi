@@ -74,7 +74,7 @@
     <module name="imu"           type="mpu6000"/>
     <!-- <module name="gps"           type="ublox"/>
     <module name="gps"           type="ubx_ucenter"/> -->
-    <module name="gps"           type="datalink">
+    <module name="gps"           type="datalink"/>
     <module name="stabilization" type="indi_simple"/>
     <module name="stabilization" type="rate_indi"/>
     <!-- <module name="ins"           type="ekf2" /> -->
@@ -97,6 +97,8 @@
     <module name="air_data"/>
     <module name="send_imu_mag_current"/>
     <module name="sys_id_chirp"/>
+    <module name="sys_id_doublet"/>
+    <module name="sys_id_wave"/>
 
 
     <!-- Internal MAG -->
@@ -195,6 +197,8 @@
 
   <command_laws>
     <call fun="sys_id_chirp_add_values(autopilot_get_motors_on(),FALSE,values)"/>
+    <call fun="sys_id_doublet_add_values(autopilot_get_motors_on(),FALSE,values)" />
+    <call fun="sys_id_wave_add_values(autopilot_get_motors_on(),FALSE,values)" />
     <call fun="motor_mixing_run(autopilot_get_motors_on(),FALSE,values)"/>
     <let var="th_hold"     value="LessThan(RadioControlValues(RADIO_TH_HOLD), -4800)"/>
 
