@@ -14,7 +14,7 @@
             Remeber to deactivate the control input when the system identification input is running using (can be checked using the sys_id_wave_running() function)
 
             Then, the GCS exposes the settings for the wave.
-            - The Chirp axis settings is the index (0-based) of the axis to choose within the WAVE_AXES variable specified. In the default, this means i.e. 0 means roll wave.
+            - The wave axis settings is the index (0-based) of the axis to choose within the WAVE_AXES variable specified. In the default, this means i.e. 0 means roll wave.
             - Amplitude is the amplitude of the wave
             - Freqyency_hz is the frequency in Hertz of the wave
             - Lag_rad is the lag in radiants for the wave signal

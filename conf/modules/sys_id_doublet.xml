@@ -4,7 +4,7 @@
     <doc>
         <description>Doublet input for system identification.
             The doublet is a multi step maneuver for system identification. Two modes are implemented, the 0,1,-1,0 maneuver (which correspond to
-            one period of a squared sine wave oscillation, and the s"co-called" 3-2-1-1 maneuver.
+            one period of a squared sine wave oscillation, and the "so-called" 3-2-1-1 maneuver.
 
             The module is used by including the module in the airframe file and adding the following line to the &lt;command_laws&gt; section:
 
