@@ -27,6 +27,7 @@
 #include "std.h"
 
 
+
 void doublet_init(struct doublet_t *doublet, float length_s, float extra_waiting_time_s, float current_time_s, bool mod3211)
 {
     doublet->t0 = current_time_s;

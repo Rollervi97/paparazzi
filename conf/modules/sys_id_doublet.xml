@@ -2,7 +2,7 @@
 
 <module name="sys_id_doublet" dir="system_identification">
     <doc>
-        <description>Doublet maneuver for system identification.
+        <description>Doublet input for system identification.
             The doublet is a multi step maneuver for system identification. Two modes are implemented, the 0,1,-1,0 maneuver (which correspond to
             one period of a squared sine wave oscillation, and the s"co-called" 3-2-1-1 maneuver.
 
@@ -13,15 +13,19 @@
             You can pick the axes to apply doublets to by setting the DOUBLET_AXES variable with the COMMAND_XXX variables where XXX are the actuators defined in
             the &lt;commands&gt; section of your airframe.
 
+            Remeber to deactivate the control input when the system identification input is running using (can be checked using the sys_id_wave_running() function)
+
             Then, the GCS exposes the settings for the doublet.
-            - The Chirp axis settings is the index (0-based) of the axis to choose within the DOUBLET_AXES variable specified. In the default, this means i.e. 0 means roll doublet.
+            - 3-2-1-1 setting is to execute the 3-2-1-1 doublet maneuver when active. Otherwise, the normal 1-1 doublet maneuver will be executed.
+            - The Doublet axis settings is the index (0-based) of the axis to choose within the DOUBLET_AXES variable specified. In the default, this means i.e. 0 means roll doublet.
             - Amplitude is the amplitude of the doublet
-            - Length_s is the length in seconds of the doublet
+            - Length_s is the length in seconds of the doublet. The lenght of each doublet step depends on the active mode and on the doublet lenght.
             - Extra_waiting_time_s is the length in second of the waiting time with zero input after the doublet maneuver is over.
 
-            Start the doublet by pressing the "Doublet start" button in the strip. Pressing "Doublet stop" will instantly stop both doublet and noise.
+            Start the doublet by checking the Active box in the "Activate doublet". Stop the doublet by checking the Inactive box in the same input setting.
 
-            Add the message "DOUBLET" to your telemetry to see doublet progress, and to your logger to automatically filter doublets in post-processing.
+            Add the message "DOUBLET" to your telemetry to see doublet progress, and to your logger to obtain information about the provided input.
+            
         </description>
         <define name="DOUBLET_AXES"        value="{COMMAND_ROLL,COMMAND_PITCH,COMMAND_YAW}" description="Which axes the doublet is applied to (specify as array with {})"/>
         <define name="DOUBLET_ENABLED"     value="TRUE|FALSE"  description="If false, the doublet does not run and values are not added"/>

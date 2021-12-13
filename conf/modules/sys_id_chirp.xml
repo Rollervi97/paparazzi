@@ -14,6 +14,8 @@
     You can pick the axes to apply chirps to by setting the CHIRP_AXES variable with the COMMAND_XXX variables where XXX are the actuators defined in 
     the &lt;commands&gt; section of your airframe.
 
+    Remeber to deactivate the control input when the system identification input is running using (can be checked using the sys_id_wave_running() function)
+
     Then, the GCS exposes the settings for the chirp.
       - The Chirp axis settings is the index (0-based) of the axis to choose within the CHIRP_AXES variable specified. In the default, this means i.e. 0 means roll chirp.
       - Amplitude is the amplitude of the chirp
@@ -22,7 +24,7 @@
       - Fstart_hz and Fend_hz are the frequencies in hertz at the start and end of the chirp. Make sure to cover all relevant dynamics frequencies
       - Length_s is the length in seconds of the chirp
 
-    Start the chirp by pressing the "Chirp start" button in the strip. Pressing "Chirp stop" will instantly stop both chirp and noise.
+    Start the chirp by checking the Active box in the "Activate chirp". Stop the chirp by checking the Inactive box in the same input setting.
 
     Add the message "CHIRP" to your telemetry to see chirp progress, and to your logger to automatically filter chirps in post-processing.
     </description>
@@ -36,7 +38,7 @@
 
   <settings>
     <dl_settings name="System identification">
-      <dl_settings name="System chirp">
+      <dl_settings name="Chirp input">
         <dl_setting min="0" max="1"    step="1" values="Inactive|Active" shortname="Chirp" var="chirp_active" type="uint8_t" module="system_identification/sys_id_chirp" handler="activate_handler"/>
         <dl_setting min="0" max="1"    step="1" values="Inactive|Active" shortname="Fade in" var="chirp_fade_in" type="uint8_t" module="system_identification/sys_id_chirp" handler="fade_in_activate_handler"/>
         <dl_setting min="0" max="1"    step="1" values="Inactive|Active" shortname="Exponential" var="chirp_exponential" type="uint8_t" module="system_identification/sys_id_chirp" handler="exponential_activate_handler"/>
