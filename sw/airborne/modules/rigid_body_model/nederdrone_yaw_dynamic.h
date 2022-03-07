@@ -27,18 +27,23 @@
 #ifndef NEDERDRONE_YAW_DYNAMIC_H
 #define NEDERDRONE_YAW_DYNAMIC_H
 
+#include "std.h"
 #include "filters/low_pass_filter.h"
 #include "modules/actuators/motor_mixing.h"
-#include "firmwares/rotorcraft/stabilization/stabilization_indi_simple.h"
+// #include "firmwares/rotorcraft/stabilization/stabilization_indi_simple.h"
 
-static struct FirstOrderLowPass propeller_dyn;
-static struct FirstOrderHighPass propeller_dyn_dot;
+// struct FirstOrderLowPass propeller_dyn;
+// struct FirstOrderHighPass propeller_dyn_dot;
 
-float alpha[4]; // = {ALPHA_1, ALPHA_2, ALPHA_3, ALPHA_4};
-float input_quantities[4];
+// float alpha[4]; // = {ALPHA_1, ALPHA_2, ALPHA_3, ALPHA_4};
+// float input_quantities[4];
 extern float rigid_body_yaw_acceleration;
+// float servo_rate;
 
-void yaw_dynamic_init(void);
-void yaw_dynamic_run(void);
-extern float read_rigid_body_yaw_acceleration(void);
+extern void yaw_dynamic_init(void);
+extern void yaw_dynamic_run(void);
+static inline void read_rigid_body_yaw_acceleration(float *RB_angular_acceleration){
+  *RB_angular_acceleration = rigid_body_yaw_acceleration;
+} // read rigid body yaw acceleration
+
 #endif

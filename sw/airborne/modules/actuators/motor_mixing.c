@@ -92,8 +92,9 @@ static const int32_t yaw_coef[MOTOR_MIXING_NB_MOTOR]    = MOTOR_MIXING_YAW_COEF;
 static const int32_t thrust_coef[MOTOR_MIXING_NB_MOTOR] = MOTOR_MIXING_THRUST_COEF;
 
 struct MotorMixing motor_mixing;
-extern float last_yaw_cmd = 0.0;
-extern float last_bounded_yaw_cmd = 0.0;
+
+float last_yaw_cmd;
+float last_bounded_yaw_cmd;
 
 #if PERIODIC_TELEMETRY
 #include "modules/datalink/telemetry.h"
@@ -110,6 +111,8 @@ static void send_motor_mixing(struct transport_tx *trans, struct link_device *de
 
 void motor_mixing_init(void)
 {
+  last_bounded_yaw_cmd = 0.0;
+  last_yaw_cmd = 0.0;
   uint8_t i;
   for (i = 0; i < MOTOR_MIXING_NB_MOTOR; i++) {
     motor_mixing.commands[i] = 0;
@@ -232,6 +235,7 @@ void motor_mixing_run(bool motors_on, bool override_on, pprz_t in_cmd[])
     Bound(yaw_authority, 0, MAX_PPRZ);
     int32_t bounded_yaw_cmd = in_cmd[COMMAND_YAW];
     BoundAbs(bounded_yaw_cmd, yaw_authority);
+
     last_yaw_cmd = 1.0 * in_cmd[COMMAND_YAW];
     last_bounded_yaw_cmd = 1.0*bounded_yaw_cmd;
 

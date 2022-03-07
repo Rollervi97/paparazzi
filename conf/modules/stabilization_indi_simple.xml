@@ -50,6 +50,10 @@
       <define name="FILT_CUTOFF_Q" value="30.0" description="First order filter Q cutoff value"/>
       <define name="FILT_CUTOFF_R" value="30.0" description="First order filter R cutoff value"/>
     </section>
+    <section name="COMPLEMENTARY_FILTER_FEEDBACK" prefix="COMPLEMENTARY_FILTER_">
+      <define name="CROSS_FREQUENCY" value="5.0" description="Cross frequency for high pass and low pass filter"/>
+      <define name="LOW_PASS_R_DOT_CUTOFF" value="15.0" description="Low pass filter from gryroscope measurement" />
+    </section>
   </doc>
   <settings>
     <dl_settings>
@@ -68,6 +72,9 @@
         <dl_setting var="indi.max_rate" min="0" step="0.01" max="400.0" shortname="max_rate" param="STABILIZATION_INDI_MAX_RATE" unit="rad/s" alt_unit="deg/s"/>
         <dl_setting var="indi.attitude_max_yaw_rate" min="0" step="0.01" max="400.0" shortname="max_yaw_rate_attitude" param="STABILIZATION_INDI_MAX_R" unit="rad/s" alt_unit="deg/s"/>
         <dl_setting var="indi.cutoff_r" min="0.2" step="0.1" max="30.0" shortname="r_cutoff_hz" handler="reset_r_filter_cutoff" type="float" module="stabilization/stabilization_indi_simple"/>
+        <dl_setting var="new_r_dot_cutoff" min="0.1" step="0.1" max="30.0" shortname="r_dot_cf_comp_hz" handler="reset_r_dot_filter_cutoff" type="float" module="stabilization/stabilization_indi_simple"/>
+        <dl_setting var="use_complementary_feedback" min="0" step="1" max="1" shortname="compl_flag" values="OFF|ON" persistent="true"/>
+        <dl_setting var="complementary_cross_freq" min="0.1" step="0.1" max="30.0" shortname="compl_cross_freq_hz" handler="reset_complementary_cross_frequency" type="float" module="stabilization/stabilization_indi_simple"/>
       </dl_settings>
     </dl_settings>
   </settings>

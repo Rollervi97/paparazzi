@@ -35,13 +35,15 @@
 #include "firmwares/rotorcraft/stabilization/stabilization_attitude_rc_setpoint.h"
 #include "firmwares/rotorcraft/stabilization/stabilization_attitude_quat_transformations.h"
 
+#include "stdio.h"
 #include "state.h"
 #include "generated/airframe.h"
 #include "paparazzi.h"
 #include "modules/radio_control/radio_control.h"
 #include "filters/low_pass_filter.h"
 #include "filters/complementary_filter.h"
-#include "modules/rigid_body/nederdrone_yaw_dynamic.h"
+#include "modules/rigid_body_model/nederdrone_yaw_dynamic.h"
+// #include "modules/rigid_body/nederdrone_yaw_dynamic.h"
 
 
 #if !defined(STABILIZATION_INDI_ACT_DYN_P) && !defined(STABILIZATION_INDI_ACT_DYN_Q) && !defined(STABILIZATION_INDI_ACT_DYN_R)
@@ -71,8 +73,12 @@
 #define STABILIZATION_INDI_MAX_R STABILIZATION_ATTITUDE_SP_MAX_R
 #endif
 
-#ifndef COMPLEMENTARY_FILT_CROSS
-#define COMPLEMENTARY_FILT_CROSS 5.0
+#ifndef COMPLEMENTARY_FILTER_CROSS_FREQUENCY
+#define COMPLEMENTARY_FILTER_CROSS_FREQUENCY 5.0
+#endif
+
+#ifndef COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF
+#define COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF 15.0
 #endif
 
 #ifndef STABILIZATION_INDI_ESTIMATION_FILT_CUTOFF
@@ -97,10 +103,15 @@
 #define STABILIZATION_INDI_FILT_CUTOFF_R 20.0
 #endif
 
+bool use_complementary_feedback = false;
+float new_r_dot_cutoff = COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF;
+float complementary_cross_freq = COMPLEMENTARY_FILTER_CROSS_FREQUENCY;
+
 struct Int32Eulers stab_att_sp_euler;
 struct Int32Quat   stab_att_sp_quat;
 
-extern struct SecondOrderComplementaryButterworth complementary_filter;
+struct SecondOrderComplementaryButterworth complementary_filter;
+Butterworth2LowPass LowPassComplementary;
 struct FloatRates old_rates;
 
 static struct FirstOrderLowPass rates_filt_fo[3];
@@ -166,6 +177,7 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
                                    &indi.angular_accel_ref.p,
                                    &indi.angular_accel_ref.q,
                                    &indi.angular_accel_ref.r,
+                                   &complementary_filter.filter_output,
                                    &g1_disp.p,
                                    &g1_disp.q,
                                    &g1_disp.r,
@@ -206,9 +218,10 @@ void indi_init_filters(void)
   float tau_axis[3] = {tau, tau, tau_rdot};
   float tau_est = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_ESTIMATION_FILT_CUTOFF);
   float sample_time = 1.0 / PERIODIC_FREQUENCY;
-  float tau_complementary = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILT_CROSS);
+  float tau_complementary = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_CROSS_FREQUENCY);
+  float tau_lp_comp = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
   init_SecondOrderComplementaryButterworth(&complementary_filter, tau_complementary, sample_time, 0.0, 0.0);
-  
+  init_butterworth_2_low_pass(&LowPassComplementary, tau_lp_comp, sample_time, 0.0);
   // Filtering of gyroscope and actuators
   for (int8_t i = 0; i < 3; i++) {
     init_butterworth_2_low_pass(&indi.u[i], tau_axis[i], sample_time, 0.0);
@@ -231,6 +244,24 @@ void stabilization_indi_simple_reset_r_filter_cutoff(float new_cutoff) {
   indi.cutoff_r = new_cutoff;
   float time_constant = 1.0/(2.0 * M_PI * indi.cutoff_r);
   init_first_order_low_pass(&rates_filt_fo[2], time_constant, sample_time, stateGetBodyRates_f()->r);
+}
+
+void stabilization_indi_simple_reset_r_dot_filter_cutoff(float new_r_dot_cf){
+  float sample_time = 1.0 / PERIODIC_FREQUENCY;
+  new_r_dot_cutoff = new_r_dot_cf;
+  float tau = 1.0/(2.0 * M_PI * new_r_dot_cutoff);
+  // init_first_order_low_pass(&rates_filt_fo[2], time_constant, sample_time, stateGetBodyRates_f()->r);
+  init_butterworth_2_low_pass(&LowPassComplementary, tau, sample_time, stateGetBodyRates_f()->r);
+  // printf("Changed low freq low pass filter freq");
+}
+
+void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf){
+  float sample_time = 1.0 / PERIODIC_FREQUENCY;
+  complementary_cross_freq = new_ccf;
+  float tau_complementary = 1.0 / (2.0 * M_PI * complementary_cross_freq);
+  float tau_lp_comp = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
+  // printf("Changed complementary cross freq");
+  
 }
 
 void stabilization_indi_enter(void)
@@ -350,14 +381,16 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   // Propagate the filter on the gyroscopes and actuators
   struct FloatRates *body_rates = stateGetBodyRates_f();
 
-  struct FloatRates unfiltered_acc;
-  // Calculate unfiltered accelerations for complementary filter
-
-  unfiltered_acc.p = (body_rates->p - old_rates.p) * PERIODIC_FREQUENCY;
-  unfiltered_acc.q = (body_rates->q - old_rates.q) * PERIODIC_FREQUENCY;
-  unfiltered_acc.r = (body_rates->r - old_rates.r) * PERIODIC_FREQUENCY;
-  // save current rate measurement for next acceleration calculation iteration
-  old_rates = stateGetBodyRates_f(); // *body_rates
+  // Filtering gyroscope signal to calculate angular acceleration
+  update_butterworth_2_low_pass(&LowPassComplementary, stateGetBodyRates_f()->r);
+  // Finite difference to obtain acceleration
+  float low_freq_comp = (LowPassComplementary.o[0] - LowPassComplementary.o[1]) * PERIODIC_FREQUENCY;
+  // get rigid body yaw acceleration
+  float rigid_body_acc = 0.0;
+  // read_rigid_body_yaw_acceleration(float &rigid_body_acc);
+  // Update yaw angular acceleration from complementary filter
+  update_SecondOrderComplementaryButterworth(&complementary_filter, low_freq_comp, rigid_body_acc);
+  // new angular acceleration is on complementary_filter.filter_output
 
   filter_pqr(indi.u, &indi.u_act_dyn);
   filter_pqr(indi.rate, body_rates);
@@ -393,20 +426,18 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   indi.angular_accel_ref.q = (rate_sp.q - rates_filt.q) * indi.gains.rate.q;
   indi.angular_accel_ref.r = (rate_sp.r - rates_filt.r) * indi.gains.rate.r;
 
-  // get rigid body yaw acceleration
-  float rigid_body_acc = read_rigid_body_yaw_acceleration();
-  // `Update yaw angular acceleration from complementary filter
-  update_SecondOrderComplementaryButterworth(&complementary_filter, unfiltered_acc.r, rigid_body_acc);
-  // new angular acceleration is on complementary_filter.filter_output
-
   //Increment in angular acceleration requires increment in control input
   //G1 is the control effectiveness. In the yaw axis, we need something additional: G2.
   //It takes care of the angular acceleration caused by the change in rotation rate of the propellers
   //(they have significant inertia, see the paper mentioned in the header for more explanation)
   indi.du.p = 1.0 / indi.g1.p * (indi.angular_accel_ref.p - indi.rate_d[0]);
   indi.du.q = 1.0 / indi.g1.q * (indi.angular_accel_ref.q - indi.rate_d[1]);
-  indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - indi.rate_d[2] + indi.g2 * indi.du.r);
-
+  if (use_complementary_feedback) {
+    // printf("Using complementary filter\n");
+    indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - complementary_filter.filter_output + indi.g2 * indi.du.r);
+  } else {
+    indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - indi.rate_d[2] + indi.g2 * indi.du.r);
+  }
   //Don't increment if thrust is off and on the ground
   //without this the inputs will increment to the maximum before even getting in the air.
   if (stabilization_cmd[COMMAND_THRUST] < 300 && !in_flight) {

@@ -10,10 +10,10 @@
 
     </description>
     
-    <define name="ALPHA_1" value="-0.02"      description="Angular rate coefficient"/>
+    <!-- <define name="ALPHA_1" value="-0.02"      description="Angular rate coefficient"/>
     <define name="ALPHA_2" value="0.0"        description="Propeller contribution"/>
     <define name="ALPHA_3" value="0.001"      description="Propeller derivative contribution"/>
-    <define name="ALPHA_4" value="0.001"      description="Control surface contribution"/>
+    <define name="ALPHA_4" value="0.001"      description="Control surface contribution"/> -->
     <define name="PROPELLER_POLE" value="18"  description="Pole propeller first order dynamic" />
     <define name="SERVO_POLE" value="50"      description="Pole servo first order dynamic" />
 
@@ -43,8 +43,11 @@
 
   <init fun="yaw_dynamic_init()"/>
   <periodic fun="yaw_dynamic_run()" freq="500" autorun="TRUE"/> 
-<!-- can I put freq="PERIODIC_FREQUENCY" so the system is synchronized with the INDI controller? -->
   <makefile>
-    <file name="pprz_random.c" dir="math"/>
+    <file name="nederdrone_yaw_dynamic.c" />
   </makefile>
+<!-- can I put freq="PERIODIC_FREQUENCY" so the system is synchronized with the INDI controller? -->
+  <!-- <makefile>
+    <file name="pprz_random.c" dir="math"/>
+  </makefile> -->
 </module>

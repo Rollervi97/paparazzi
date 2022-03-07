@@ -37,6 +37,8 @@
       <module name="logger" type="sd_chibios"/>
       <module name="flight_recorder"/>
 
+      
+
       <define name="ADC_CURRENT_DISABLE" value="TRUE"/>
       <module name="adc_generic">
         <configure name="ADC_CHANNEL_GENERIC1" value="ADC_5"/>
@@ -57,7 +59,7 @@
       <module name="fdm" type="jsbsim"/>
 
       <module name="scheduling_indi_simple"/>
-
+      
       <module name="logger_file">
         <define name="FILE_LOGGER_PATH" value="/home/ewoud/Documents"/>
       </module>
@@ -86,6 +88,8 @@
     
     <module name="air_data"/>
     <module name="send_imu_mag_current"/>
+    <!-- Rigid body model run -->
+    <module name="nederdrone_yaw_dynamic"/>
 
     <!-- Internal MAG -->
     <!--module name="mag_ist8310">

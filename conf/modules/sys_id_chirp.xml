@@ -59,7 +59,7 @@
   </header>
 
   <init fun="sys_id_chirp_init()"/>
-  <periodic fun="sys_id_chirp_run()" freq="60" autorun="TRUE"/>
+  <periodic fun="sys_id_chirp_run()" freq="100" autorun="TRUE"/>
 
   <makefile>
     <file name="pprz_random.c" dir="math"/>

@@ -39,10 +39,9 @@ struct SecondOrderComplementaryButterworth{
     Butterworth2LowPass AuxHighFrequencyComponent;
     float filter_output;
 
-}
+};
 
-
-static inline void init_SecondOrderComplementaryButterworth(SecondOrderComplementaryButterworth *filter, float tau, float sample_time, float valueLF, float valueHF){
+static inline void init_SecondOrderComplementaryButterworth(struct SecondOrderComplementaryButterworth *filter, float tau, float sample_time, float valueLF, float valueHF){
     init_butterworth_2_low_pass(&filter->AuxLowFrequencyComponent, tau, sample_time, valueLF);
     filter->HighFrequencyComponent = valueHF;
     filter->LowFrequencyComponent = valueLF;
@@ -50,10 +49,13 @@ static inline void init_SecondOrderComplementaryButterworth(SecondOrderComplemen
     filter->filter_output = valueLF + valueHF;
 }
 
-static inline void update_SecondOrderComplementaryButterworth(SecondOrderComplementaryButterworth *filter, float valueLF, float valueHF){
+static inline void update_SecondOrderComplementaryButterworth(struct SecondOrderComplementaryButterworth *filter, float valueLF, float valueHF){
     update_butterworth_2_low_pass(&filter->AuxLowFrequencyComponent, valueLF);
     update_butterworth_2_low_pass(&filter->AuxHighFrequencyComponent, valueHF);
     filter->HighFrequencyComponent = valueHF - filter->AuxHighFrequencyComponent.o[0];
     filter->LowFrequencyComponent = filter->AuxLowFrequencyComponent.o[0];
     filter->filter_output = valueLF + valueHF;
 }
+
+#endif
+

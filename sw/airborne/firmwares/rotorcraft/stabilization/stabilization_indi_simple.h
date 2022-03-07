@@ -37,8 +37,11 @@
 #include "firmwares/rotorcraft/stabilization/stabilization_attitude_ref_quat_int.h"
 #include "filters/low_pass_filter.h"
 #include "filters/complementary_filter.h"
-#include "modules/rigid_body/nederdrone_yaw_dynamic.h"
+#include "modules/rigid_body_model/nederdrone_yaw_dynamic.h"
 
+extern bool use_complementary_feedback;
+extern float new_r_dot_cutoff;
+extern float complementary_cross_freq;
 
 extern struct Int32Quat   stab_att_sp_quat;  ///< with #INT32_QUAT_FRAC
 extern struct Int32Eulers stab_att_sp_euler; ///< with #INT32_ANGLE_FRAC
@@ -92,6 +95,8 @@ extern void stabilization_indi_rate_run(struct FloatRates rates_sp, bool in_flig
 extern void stabilization_indi_attitude_run(struct Int32Quat quat_sp, bool in_flight);
 extern void stabilization_indi_read_rc(bool in_flight, bool in_carefree, bool coordinated_turn);
 extern void stabilization_indi_simple_reset_r_filter_cutoff(float new_cutoff);
+extern void stabilization_indi_simple_reset_r_dot_filter_cutoff(float new_r_dot_cutoff);
+extern void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf);
 
 #endif /* STABILIZATION_INDI_SIMPLE_H */
 
