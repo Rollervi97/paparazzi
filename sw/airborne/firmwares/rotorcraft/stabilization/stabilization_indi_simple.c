@@ -40,6 +40,9 @@
 #include "paparazzi.h"
 #include "modules/radio_control/radio_control.h"
 #include "filters/low_pass_filter.h"
+#include "filters/complementary_filter.h"
+#include "modules/rigid_body/nederdrone_yaw_dynamic.h"
+
 
 #if !defined(STABILIZATION_INDI_ACT_DYN_P) && !defined(STABILIZATION_INDI_ACT_DYN_Q) && !defined(STABILIZATION_INDI_ACT_DYN_R)
 #error You have to define the first order time constant of the actuator dynamics!
@@ -68,6 +71,10 @@
 #define STABILIZATION_INDI_MAX_R STABILIZATION_ATTITUDE_SP_MAX_R
 #endif
 
+#ifndef COMPLEMENTARY_FILT_CROSS
+#define COMPLEMENTARY_FILT_CROSS 5.0
+#endif
+
 #ifndef STABILIZATION_INDI_ESTIMATION_FILT_CUTOFF
 #define STABILIZATION_INDI_ESTIMATION_FILT_CUTOFF 4.0
 #endif
@@ -92,6 +99,9 @@
 
 struct Int32Eulers stab_att_sp_euler;
 struct Int32Quat   stab_att_sp_quat;
+
+extern struct SecondOrderComplementaryButterworth complementary_filter;
+struct FloatRates old_rates;
 
 static struct FirstOrderLowPass rates_filt_fo[3];
 
@@ -196,6 +206,9 @@ void indi_init_filters(void)
   float tau_axis[3] = {tau, tau, tau_rdot};
   float tau_est = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_ESTIMATION_FILT_CUTOFF);
   float sample_time = 1.0 / PERIODIC_FREQUENCY;
+  float tau_complementary = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILT_CROSS);
+  init_SecondOrderComplementaryButterworth(&complementary_filter, tau_complementary, sample_time, 0.0, 0.0);
+  
   // Filtering of gyroscope and actuators
   for (int8_t i = 0; i < 3; i++) {
     init_butterworth_2_low_pass(&indi.u[i], tau_axis[i], sample_time, 0.0);
@@ -336,6 +349,16 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
 
   // Propagate the filter on the gyroscopes and actuators
   struct FloatRates *body_rates = stateGetBodyRates_f();
+
+  struct FloatRates unfiltered_acc;
+  // Calculate unfiltered accelerations for complementary filter
+
+  unfiltered_acc.p = (body_rates->p - old_rates.p) * PERIODIC_FREQUENCY;
+  unfiltered_acc.q = (body_rates->q - old_rates.q) * PERIODIC_FREQUENCY;
+  unfiltered_acc.r = (body_rates->r - old_rates.r) * PERIODIC_FREQUENCY;
+  // save current rate measurement for next acceleration calculation iteration
+  old_rates = stateGetBodyRates_f(); // *body_rates
+
   filter_pqr(indi.u, &indi.u_act_dyn);
   filter_pqr(indi.rate, body_rates);
 
@@ -369,6 +392,12 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   indi.angular_accel_ref.p = (rate_sp.p - rates_filt.p) * indi.gains.rate.p;
   indi.angular_accel_ref.q = (rate_sp.q - rates_filt.q) * indi.gains.rate.q;
   indi.angular_accel_ref.r = (rate_sp.r - rates_filt.r) * indi.gains.rate.r;
+
+  // get rigid body yaw acceleration
+  float rigid_body_acc = read_rigid_body_yaw_acceleration();
+  // `Update yaw angular acceleration from complementary filter
+  update_SecondOrderComplementaryButterworth(&complementary_filter, unfiltered_acc.r, rigid_body_acc);
+  // new angular acceleration is on complementary_filter.filter_output
 
   //Increment in angular acceleration requires increment in control input
   //G1 is the control effectiveness. In the yaw axis, we need something additional: G2.

@@ -36,6 +36,9 @@
 
 #include "firmwares/rotorcraft/stabilization/stabilization_attitude_ref_quat_int.h"
 #include "filters/low_pass_filter.h"
+#include "filters/complementary_filter.h"
+#include "modules/rigid_body/nederdrone_yaw_dynamic.h"
+
 
 extern struct Int32Quat   stab_att_sp_quat;  ///< with #INT32_QUAT_FRAC
 extern struct Int32Eulers stab_att_sp_euler; ///< with #INT32_ANGLE_FRAC

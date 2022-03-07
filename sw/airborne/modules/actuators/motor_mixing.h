@@ -43,7 +43,8 @@ struct MotorMixing {
 };
 
 extern struct MotorMixing motor_mixing;
-
+extern float last_yaw_cmd;
+extern float last_bounded_yaw_cmd;
 extern void motor_mixing_init(void);
 extern void motor_mixing_run(bool motors_on, bool override_on, pprz_t in_cmd[]);
 extern void motor_mixing_run_spinup(uint32_t counter, uint32_t max_counter);
