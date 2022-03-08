@@ -86,7 +86,7 @@ static void set_current_doublet_values(void)
 static void send_doublet(struct transport_tx *trans, struct link_device *dev){
     pprz_msg_send_DOUBLET(trans, dev, AC_ID, &doublet_active,
                         &doublet_axis, &doublet_amplitude,
-                        &current_doublet_values[doublet_axis], &doublet_mode_3211);
+                        &current_doublet_values[doublet_axis], &doublet_mode_3211, &doublet_heading_reference_flag);
 }
 
 static void start_doublet(void)
@@ -130,12 +130,12 @@ void sys_id_doublet_mod3211_handler(uint8_t mode){
 }
 
 extern void sys_id_doublet_provide_heading_reference(uint8_t heading_ref_flag){
-    printf("Doublet will act on the heading angle now\n");
+    // printf("Doublet will act on the heading angle now\n");
     doublet_heading_reference_flag = heading_ref_flag;
 }
 
 extern void sys_id_doublet_set_heading_reference_amplitude_deg(float h_ref_amp){
-    printf("Max heading angle set\n");
+    // printf("Max heading angle set\n");
     doublet_deg_reference_amplitude = h_ref_amp;
 }
 
@@ -159,10 +159,10 @@ void sys_id_doublet_run(void)
             stop_doublet();
         } else {
             doublet_update(&doublet, get_sys_time_float());
-            printf("Doublet input is running!!!\n");
+            // printf("Doublet input is running!!!\n");
             set_current_doublet_values();
             if (doublet_heading_reference_flag) {
-                printf("Updating heading angle\n");
+                // printf("Updating heading angle\n");
                 float heading_deg = doublet.current_value * doublet_deg_reference_amplitude;
                 nav_set_heading_deg(heading_deg);
             }

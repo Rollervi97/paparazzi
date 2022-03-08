@@ -42,7 +42,7 @@
 extern bool use_complementary_feedback;
 extern float new_r_dot_cutoff;
 extern float complementary_cross_freq;
-
+extern float rigid_body_acc;
 extern struct Int32Quat   stab_att_sp_quat;  ///< with #INT32_QUAT_FRAC
 extern struct Int32Eulers stab_att_sp_euler; ///< with #INT32_ANGLE_FRAC
 

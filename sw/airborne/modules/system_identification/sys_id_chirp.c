@@ -113,7 +113,7 @@ static void send_chirp(struct transport_tx *trans, struct link_device *dev)
 {
   pprz_msg_send_CHIRP(trans, dev, AC_ID, &chirp_active, &chirp.percentage_done, &chirp.current_frequency_hz,
                       &chirp_axis, &chirp_amplitude, &chirp_fstart_hz, &chirp_fstop_hz, &chirp_noise_stdv_onaxis_ratio,
-                      &chirp_noise_stdv_offaxis, &current_chirp_values[chirp_axis], &chirp_fade_in, &chirp_exponential);
+                      &chirp_noise_stdv_offaxis, &current_chirp_values[chirp_axis], &chirp_fade_in, &chirp_exponential, &chirp_heading_reference_flag);
 
 }
 
@@ -180,12 +180,12 @@ extern void sys_id_chirp_exponential_activate_handler(uint8_t exponential)
 }
 
 extern void sys_id_chirp_provide_heading_reference(uint8_t heading_ref_flag){
-    printf("Chirp will act on the heading angle now\n");
+    // printf("Chirp will act on the heading angle now\n");
     chirp_heading_reference_flag = heading_ref_flag;
 }
 
 extern void sys_id_chirp_set_heading_reference_amplitude_deg(float h_ref_amp){
-    printf("Max heading angle set\n");
+    // printf("Max heading angle set\n");
     chirp_deg_reference_amplitude = h_ref_amp;
 }
 
@@ -223,7 +223,7 @@ void sys_id_chirp_run(void)
       chirp_update(&chirp, get_sys_time_float());
       set_current_chirp_values();
       if (chirp_heading_reference_flag) {
-        printf("Updating heading angle\n");
+        // printf("Updating heading angle\n");
                 float heading_deg = chirp.current_value * chirp_deg_reference_amplitude;
                 nav_set_heading_deg(heading_deg);
       }

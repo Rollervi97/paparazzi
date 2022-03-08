@@ -106,6 +106,7 @@
 bool use_complementary_feedback = false;
 float new_r_dot_cutoff = COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF;
 float complementary_cross_freq = COMPLEMENTARY_FILTER_CROSS_FREQUENCY;
+float rigid_body_acc = 0.0;
 
 struct Int32Eulers stab_att_sp_euler;
 struct Int32Quat   stab_att_sp_quat;
@@ -386,8 +387,8 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   // Finite difference to obtain acceleration
   float low_freq_comp = (LowPassComplementary.o[0] - LowPassComplementary.o[1]) * PERIODIC_FREQUENCY;
   // get rigid body yaw acceleration
-  float rigid_body_acc = 0.0;
-  // read_rigid_body_yaw_acceleration(float &rigid_body_acc);
+  
+  read_rigid_body_yaw_acceleration(&rigid_body_acc);
   // Update yaw angular acceleration from complementary filter
   update_SecondOrderComplementaryButterworth(&complementary_filter, low_freq_comp, rigid_body_acc);
   // new angular acceleration is on complementary_filter.filter_output

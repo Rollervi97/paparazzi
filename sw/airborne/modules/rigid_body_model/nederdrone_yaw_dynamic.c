@@ -112,42 +112,44 @@ void yaw_dynamic_init(void)
   rigid_body_yaw_acceleration = 0.0;
   last_servo_deflection = 0.0;
   servo_rate = 0.0;
-  printf("Rigid body mod initilized");
+  // printf("Rigid body mod initilized");
   #if PERIODIC_TELEMETRY
     register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_NEDERDRONE_YAW_DYNAMIC, send_nederdrone_yaw_dynamic);
   #endif
 }
 
 void yaw_dynamic_run(void){
-  // get rates in deg/sec, keep only the yaw one
-  // printf("Rigid body mod running\n");
-  // float current_ang_rate = ;
-  input_quantities[0] = (pow(stateGetBodyRates_f()->r, 3)) / abs(stateGetBodyRates_f()->r);
+  // yaw rate is given in rad/s, we need deg/s so we calculate the quantity and then we m
+  input_quantities[0] = (pow(stateGetBodyRates_f()->r, 3)) / abs(stateGetBodyRates_f()->r) * 180.0 * 180.0 / M_PI / M_PI;
   // finish to code servo dynamic calculation
   // lala2 = BoundAbs(indi.u_in.r*2, 6000) * 37.82 / 6000.0; // servo required deflection in deg
   last_servo_deflection = input_quantities[3];
-  servo_rate = indi.u_in.r * 2;
-  BoundAbs(servo_rate, 6000);
-  servo_rate = SERVO_POLE * (servo_rate * 37.82 / 6000.0 - last_servo_deflection);
-  BoundAbs(servo_rate, 60/0.15);
-  input_quantities[3] = last_servo_deflection + sample_time * servo_rate;
+  servo_rate = indi.u_in.r * 2; // calculate command sent to Actuator
+  BoundAbs(servo_rate, 6000); // bound the command according to the airframe file
+  servo_rate = SERVO_POLE * (servo_rate * 37.82 / 6000.0 - last_servo_deflection); // calculating the angular rate of the servo [deg/s]
+  BoundAbs(servo_rate, 60/0.15); // limiting servo rate according to specifications
+  input_quantities[3] = last_servo_deflection + sample_time * servo_rate; // using limited servo rate to update servo position [deg]
 
   
   update_first_order_low_pass(&propeller_dyn, last_bounded_yaw_cmd);
-  // update_first_order_high_pass(&propeller_dyn_dot, last_bounded_yaw_cmd);
+  update_first_order_high_pass(&propeller_dyn_dot, last_bounded_yaw_cmd);
   // update_first_order_low_pass(&servo_dyn, lala2);
 
-  input_quantities[1] = propeller_dyn.last_out;
-  input_quantities[2] = 0.0; //propeller_dyn_dot.o[0];
+  input_quantities[1] = propeller_dyn.last_out; // motor yaw command after motor mixing routine [PPRZ_CMD]
+  input_quantities[2] = propeller_dyn_dot.last_out; // motor yaw command after motor mixing routine [PPRZ_CMD/s]
   // input_quantities[3] = servo_dyn.o[0];
 
+  //calculation of rigid body model acceleration
   rigid_body_yaw_acceleration = 0.0;
 
   for (int8_t i=0; i<4; i++){
     rigid_body_yaw_acceleration = rigid_body_yaw_acceleration + input_quantities[i] * alpha[i];
   }
-
+  rigid_body_yaw_acceleration = rigid_body_yaw_acceleration / 2 / M_PI; // getting the acceleration in rad/s^2 
 // static inline void read_rigid_body_yaw_acceleration(float *RB_angular_acceleration){
 //   // read rigid body yaw acceleration
 //   *RB_angular_acceleration =  rigid_body_yaw_acceleration;
 }
+void read_rigid_body_yaw_acceleration(float *RB_angular_acceleration) {
+  *RB_angular_acceleration = rigid_body_yaw_acceleration;
+} // read rigid body yaw acceleration

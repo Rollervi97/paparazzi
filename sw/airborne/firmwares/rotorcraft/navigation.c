@@ -29,6 +29,7 @@
 #define NAV_C
 
 #include "firmwares/rotorcraft/navigation.h"
+#include "stdio.h"
 
 #include "pprz_debug.h"
 #include "modules/gps/gps.h" // needed by auto_nav from the flight plan
@@ -472,6 +473,7 @@ void nav_set_heading_rad(float rad)
 /** Set nav_heading in degrees. */
 void nav_set_heading_deg(float deg)
 {
+  // printf("Changing heading, heading = %f degree\n", deg);
   nav_set_heading_rad(RadOfDeg(deg));
 }
 

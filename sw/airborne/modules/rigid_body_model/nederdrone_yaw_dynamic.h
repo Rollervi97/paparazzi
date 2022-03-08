@@ -42,8 +42,7 @@ extern float rigid_body_yaw_acceleration;
 
 extern void yaw_dynamic_init(void);
 extern void yaw_dynamic_run(void);
-static inline void read_rigid_body_yaw_acceleration(float *RB_angular_acceleration){
-  *RB_angular_acceleration = rigid_body_yaw_acceleration;
-} // read rigid body yaw acceleration
+
+extern void read_rigid_body_yaw_acceleration(float *RB_angular_acceleration);
 
 #endif
