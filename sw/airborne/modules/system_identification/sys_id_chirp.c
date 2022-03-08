@@ -33,6 +33,7 @@
 #include "mcu_periph/sys_time.h"
 #include "filters/low_pass_filter.h"
 #include "math/pprz_random.h"
+#include "firmwares/rotorcraft/navigation.h"
 
 
 #ifndef CHIRP_AXES
@@ -65,7 +66,8 @@ float chirp_noise_stdv_offaxis = 200;
 float chirp_fstart_hz = 1.0f;
 float chirp_fstop_hz = 5.0f;
 float chirp_length_s = 20;
-
+uint8_t chirp_heading_reference_flag = false;
+float chirp_deg_reference_amplitude = 0.0;
 uint8_t chirp_fade_in = false;
 uint8_t chirp_exponential = false;
 
@@ -177,6 +179,18 @@ extern void sys_id_chirp_exponential_activate_handler(uint8_t exponential)
   chirp_exponential = exponential;
 }
 
+extern void sys_id_chirp_provide_heading_reference(uint8_t heading_ref_flag){
+    printf("Chirp will act on the heading angle now\n");
+    chirp_heading_reference_flag = heading_ref_flag;
+}
+
+extern void sys_id_chirp_set_heading_reference_amplitude_deg(float h_ref_amp){
+    printf("Max heading angle set\n");
+    chirp_deg_reference_amplitude = h_ref_amp;
+}
+
+
+
 void sys_id_chirp_init(void)
 {
 #if CHIRP_USE_NOISE
@@ -208,6 +222,11 @@ void sys_id_chirp_run(void)
     } else {
       chirp_update(&chirp, get_sys_time_float());
       set_current_chirp_values();
+      if (chirp_heading_reference_flag) {
+        printf("Updating heading angle\n");
+                float heading_deg = chirp.current_value * chirp_deg_reference_amplitude;
+                nav_set_heading_deg(heading_deg);
+      }
     }
   }
 
@@ -228,4 +247,8 @@ void sys_id_chirp_add_values(bool motors_on, bool override_on, pprz_t in_cmd[])
   }
 
 #endif
+}
+
+void GetChirpValue(float *destination){
+    *destination = current_chirp_values[chirp_axis] * 1.0;
 }

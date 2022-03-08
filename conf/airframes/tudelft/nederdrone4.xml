@@ -90,6 +90,8 @@
     <module name="send_imu_mag_current"/>
     <!-- Rigid body model run -->
     <module name="nederdrone_yaw_dynamic"/>
+    <module name="sys_id_chirp"></module>
+    <module name="sys_id_doublet"></module>
 
     <!-- Internal MAG -->
     <!--module name="mag_ist8310">

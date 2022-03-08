@@ -36,6 +36,7 @@
 #define SYS_ID_DOUBLET_H
 
 #include "paparazzi.h"
+#include "firmwares/rotorcraft/navigation.h"
 
 
 extern uint8_t doublet_active;
@@ -47,6 +48,8 @@ extern float doublet_extra_waiting_time_s;
 extern uint8_t doublet_axis;
 
 extern uint8_t doublet_mode_3211;
+extern uint8_t doublet_heading_reference_flag;
+extern float doublet_deg_reference_amplitude;
 
 extern void sys_id_doublet_init(void);
 
@@ -57,8 +60,11 @@ extern void sys_id_doublet_run(void);
 extern void sys_id_doublet_activate_handler(uint8_t activate); // Activate the doublet
 extern void sys_id_doublet_axis_handler(uint8_t axis); // Check if new axis
 extern void sys_id_doublet_mod3211_handler(uint8_t mode);
+extern void sys_id_doublet_provide_heading_reference(uint8_t heading_ref_flag);
+extern void sys_id_doublet_set_heading_reference_amplitude_deg(float h_ref_amp);
 extern uint8_t sys_id_doublet_running(void);
 // Add the current doublet values to the in_cmd values if motors_on is true
 extern void sys_id_doublet_add_values(bool motors_on, bool override_on, pprz_t in_cmd[]);
+extern void getDoubletValue(float *destination);
 
 #endif // SYS_ID_DOUBLET_H

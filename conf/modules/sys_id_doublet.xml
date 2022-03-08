@@ -49,10 +49,12 @@
             <dl_settings name="Doublet input">
                 <dl_setting min="0"    max="1"    step="1" values="Inactive|Active" shortname="Doublet" var="doublet_active" type="uint8_t" module="system_identification/sys_id_doublet" handler="activate_handler"/>
                 <dl_setting min="0"    max="1"    step="1" values="Inactive|Active" shortname="3-2-1-1 mode" var="doublet_mode_3211" type="uint8_t" module="system_identification/sys_id_doublet" handler="mod3211_handler"/>
+                <dl_setting min="0"    max="1"    step="1" values="Inactive|Active" shortname="heading ref input" var="doublet_heading_reference_flag" type="uint8_t" module="system_identification/sys_id_doublet" handler="provide_heading_reference"/>
                 <dl_setting min="0"    max="9600" step="100"  shortname="Amplitude"      var="doublet_amplitude"               type="int32_t" module="system_identification/sys_id_doublet"/>
                 <dl_setting min="0"    max="5"    step="1"    shortname="Doublet axis"     var="doublet_axis"                    type="uint8_t" module="system_identification/sys_id_doublet" handler="axis_handler"/>
                 <dl_setting min="0"    max="100"  step="0.5"  shortname="Length_s"       var="doublet_length_s"                type="float"   module="system_identification/sys_id_doublet"/>
                 <dl_setting min="0"    max="100"  step="0.5"  shortname="Extra_waiting_s"   var="doublet_extra_waiting_time_s"              type="float"   module="system_identification/sys_id_doublet"/>
+                <dl_setting min="0"    max="360"  step="1"  shortname="Max attitude ref"   var="doublet_deg_reference_amplitude"              type="float"   module="system_identification/sys_id_doublet" handler="set_heading_reference_amplitude_deg"/>
             </dl_settings>
         </dl_settings>
     </settings>
@@ -62,7 +64,7 @@
     </header>
 
     <init fun="sys_id_doublet_init()"/>
-    <periodic fun="sys_id_doublet_run()" freq="60" autorun="TRUE"/>
+    <periodic fun="sys_id_doublet_run()" freq="100" autorun="TRUE"/>
 
     <makefile>
         <file name="pprz_doublet.c"/>

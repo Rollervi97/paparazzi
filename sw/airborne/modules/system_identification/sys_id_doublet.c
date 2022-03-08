@@ -32,13 +32,14 @@
  *
  */
 #include "std.h"
-
+#include "stdio.h"
 #include "sys_id_doublet.h"
 #include "pprz_doublet.h"
 
 #include "modules/datalink/telemetry.h"
 #include "generated/airframe.h"
 #include "mcu_periph/sys_time.h"
+#include "firmwares/rotorcraft/navigation.h"
 
 #ifndef DOUBLET_AXES
 #define DOUBLET_AXES {COMMAND_ROLL,COMMAND_PITCH,COMMAND_YAW,COMMAND_THRUST}
@@ -54,6 +55,8 @@ static struct doublet_t doublet;
 
 uint8_t doublet_active = false;
 uint8_t doublet_mode_3211 = false;
+uint8_t doublet_heading_reference_flag = false;
+float doublet_deg_reference_amplitude = 0.0;
 
 uint8_t doublet_axis = 0;
 
@@ -126,6 +129,17 @@ void sys_id_doublet_mod3211_handler(uint8_t mode){
     doublet_mode_3211 = mode;
 }
 
+extern void sys_id_doublet_provide_heading_reference(uint8_t heading_ref_flag){
+    printf("Doublet will act on the heading angle now\n");
+    doublet_heading_reference_flag = heading_ref_flag;
+}
+
+extern void sys_id_doublet_set_heading_reference_amplitude_deg(float h_ref_amp){
+    printf("Max heading angle set\n");
+    doublet_deg_reference_amplitude = h_ref_amp;
+}
+
+
 void sys_id_doublet_init(void)
 {
     doublet_init(&doublet, doublet_length_s, doublet_extra_waiting_time_s, get_sys_time_float(), doublet_mode_3211);
@@ -145,7 +159,13 @@ void sys_id_doublet_run(void)
             stop_doublet();
         } else {
             doublet_update(&doublet, get_sys_time_float());
+            printf("Doublet input is running!!!\n");
             set_current_doublet_values();
+            if (doublet_heading_reference_flag) {
+                printf("Updating heading angle\n");
+                float heading_deg = doublet.current_value * doublet_deg_reference_amplitude;
+                nav_set_heading_deg(heading_deg);
+            }
         }
     }
     
@@ -166,4 +186,8 @@ if (motors_on) {
 }
 
 #endif
+}
+
+void GetDoubletValue(float *destination){
+    *destination = current_doublet_values[doublet_axis] * 1.0;
 }

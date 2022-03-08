@@ -39,7 +39,7 @@
 #define SYS_ID_CHIRP_H
 
 #include "paparazzi.h"
-
+#include "firmwares/rotorcraft/navigation.h"
 
 extern uint8_t chirp_active;
 extern pprz_t chirp_amplitude;
@@ -56,6 +56,9 @@ extern uint8_t chirp_axis;
 extern uint8_t chirp_fade_in;
 extern uint8_t chirp_exponential;
 
+extern uint8_t chirp_heading_reference_flag;
+extern float chirp_deg_reference_amplitude;
+
 
 extern void sys_id_chirp_init(void);
 
@@ -69,9 +72,13 @@ extern void sys_id_chirp_fstart_handler(float fstart); // Check if fstart is low
 extern void sys_id_chirp_fstop_handler(float fstop); // Check if fend is higher than current fstart
 extern void sys_id_chirp_fade_in_activate_handler(uint8_t fade_in); // Fade in feature switch
 extern void sys_id_chirp_exponential_activate_handler(uint8_t exponential); // Exponential chirp feature switch
+extern void sys_id_chirp_provide_heading_reference(uint8_t heading_ref_flag);
+extern void sys_id_chirp_set_heading_reference_amplitude_deg(float h_ref_amp);
+
 extern uint8_t sys_id_chirp_running(void); // Check if the chirp is running or not
 
 // Add the current chirp values to the in_cmd values if motors_on is true
 extern void sys_id_chirp_add_values(bool motors_on, bool override_on, pprz_t in_cmd[]);
+extern void getChirpValue(float *destination);
 
 #endif // SYS_ID_CHIRP_H
