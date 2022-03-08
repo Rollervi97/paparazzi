@@ -26,7 +26,7 @@
  */
 
 #ifndef ALPHA_1
-#define ALPHA_1 -0.001
+#define ALPHA_1 -0.032
 #endif
 
 #ifndef ALPHA_2
@@ -34,11 +34,11 @@
 #endif
 
 #ifndef ALPHA_3
-#define ALPHA_3 0.037
+#define ALPHA_3 0.0368
 #endif
 
 #ifndef ALPHA_4
-#define ALPHA_4 3.0
+#define ALPHA_4 4.652
 #endif
 
 

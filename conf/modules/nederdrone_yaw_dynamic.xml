@@ -10,10 +10,10 @@
 
     </description>
     
-    <!-- <define name="ALPHA_1" value="-0.02"      description="Angular rate coefficient"/>
+    <define name="ALPHA_1" value="-0.032"     description="Angular rate coefficient"/>
     <define name="ALPHA_2" value="0.0"        description="Propeller contribution"/>
-    <define name="ALPHA_3" value="0.001"      description="Propeller derivative contribution"/>
-    <define name="ALPHA_4" value="0.001"      description="Control surface contribution"/> -->
+    <define name="ALPHA_3" value="0.0368"     description="Propeller derivative contribution"/>
+    <define name="ALPHA_4" value="4.652"      description="Control surface contribution"/>
     <define name="PROPELLER_POLE" value="18"  description="Pole propeller first order dynamic" />
     <define name="SERVO_POLE" value="50"      description="Pole servo first order dynamic" />
 
