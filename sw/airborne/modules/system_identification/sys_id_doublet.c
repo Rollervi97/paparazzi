@@ -86,7 +86,8 @@ static void set_current_doublet_values(void)
 static void send_doublet(struct transport_tx *trans, struct link_device *dev){
     pprz_msg_send_DOUBLET(trans, dev, AC_ID, &doublet_active,
                         &doublet_axis, &doublet_amplitude,
-                        &current_doublet_values[doublet_axis], &doublet_mode_3211, &doublet_heading_reference_flag);
+                        &current_doublet_values[doublet_axis], &doublet_mode_3211, &doublet_heading_reference_flag,
+                        &doublet_deg_reference_amplitude, &doublet.current_value);
 }
 
 static void start_doublet(void)

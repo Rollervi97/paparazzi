@@ -120,7 +120,7 @@ void yaw_dynamic_init(void)
 
 void yaw_dynamic_run(void){
   // yaw rate is given in rad/s, we need deg/s so we calculate the quantity and then we m
-  input_quantities[0] = (pow(stateGetBodyRates_f()->r, 3)) / abs(stateGetBodyRates_f()->r) * 180.0 * 180.0 / M_PI / M_PI;
+  input_quantities[0] = stateGetBodyRates_f()->r * abs(stateGetBodyRates_f()->r) * 180.0 * 180.0 / M_PI / M_PI;
   // finish to code servo dynamic calculation
   // lala2 = BoundAbs(indi.u_in.r*2, 6000) * 37.82 / 6000.0; // servo required deflection in deg
   last_servo_deflection = input_quantities[3];
@@ -141,11 +141,12 @@ void yaw_dynamic_run(void){
 
   //calculation of rigid body model acceleration
   rigid_body_yaw_acceleration = 0.0;
-
+  printf("Acceleration initiailidez to zero: %f \n", rigid_body_yaw_acceleration);
   for (int8_t i=0; i<4; i++){
     rigid_body_yaw_acceleration = rigid_body_yaw_acceleration + input_quantities[i] * alpha[i];
   }
-  rigid_body_yaw_acceleration = rigid_body_yaw_acceleration / 2 / M_PI; // getting the acceleration in rad/s^2 
+  rigid_body_yaw_acceleration = rigid_body_yaw_acceleration / 180 * M_PI; // getting the acceleration in rad/s^2 
+  printf("Acceleration estimated: %f \n", rigid_body_yaw_acceleration);
 // static inline void read_rigid_body_yaw_acceleration(float *RB_angular_acceleration){
 //   // read rigid body yaw acceleration
 //   *RB_angular_acceleration =  rigid_body_yaw_acceleration;

@@ -178,6 +178,8 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
                                    &indi.angular_accel_ref.p,
                                    &indi.angular_accel_ref.q,
                                    &indi.angular_accel_ref.r,
+                                   &complementary_filter.LowFrequencyComponent,
+                                   &complementary_filter.HighFrequencyComponent,
                                    &complementary_filter.filter_output,
                                    &g1_disp.p,
                                    &g1_disp.q,
@@ -260,7 +262,8 @@ void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf
   float sample_time = 1.0 / PERIODIC_FREQUENCY;
   complementary_cross_freq = new_ccf;
   float tau_complementary = 1.0 / (2.0 * M_PI * complementary_cross_freq);
-  float tau_lp_comp = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
+  // float tau_lp_comp = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
+  init_SecondOrderComplementaryButterworth(&complementary_filter, tau_complementary, sample_time, complementary_filter.LowFrequencyComponent, complementary_filter.HighFrequencyComponent);
   // printf("Changed complementary cross freq");
   
 }

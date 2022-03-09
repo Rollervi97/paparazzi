@@ -113,7 +113,8 @@ static void send_chirp(struct transport_tx *trans, struct link_device *dev)
 {
   pprz_msg_send_CHIRP(trans, dev, AC_ID, &chirp_active, &chirp.percentage_done, &chirp.current_frequency_hz,
                       &chirp_axis, &chirp_amplitude, &chirp_fstart_hz, &chirp_fstop_hz, &chirp_noise_stdv_onaxis_ratio,
-                      &chirp_noise_stdv_offaxis, &current_chirp_values[chirp_axis], &chirp_fade_in, &chirp_exponential, &chirp_heading_reference_flag);
+                      &chirp_noise_stdv_offaxis, &current_chirp_values[chirp_axis], &chirp_fade_in, &chirp_exponential, &chirp_heading_reference_flag, 
+                      &chirp_deg_reference_amplitude, &chirp.current_value);
 
 }
 

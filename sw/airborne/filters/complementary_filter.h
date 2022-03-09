@@ -54,7 +54,7 @@ static inline void update_SecondOrderComplementaryButterworth(struct SecondOrder
     update_butterworth_2_low_pass(&filter->AuxHighFrequencyComponent, valueHF);
     filter->HighFrequencyComponent = valueHF - filter->AuxHighFrequencyComponent.o[0];
     filter->LowFrequencyComponent = filter->AuxLowFrequencyComponent.o[0];
-    filter->filter_output = valueLF + valueHF;
+    filter->filter_output = filter->HighFrequencyComponent + filter->LowFrequencyComponent;
 }
 
 #endif
