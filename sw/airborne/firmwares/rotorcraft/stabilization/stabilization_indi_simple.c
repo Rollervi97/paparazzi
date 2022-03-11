@@ -180,11 +180,11 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
                                    &indi.angular_accel_ref.r,
                                    &complementary_filter.LowFrequencyComponent,
                                    &complementary_filter.HighFrequencyComponent,
-                                   &complementary_filter.filter_output,
-                                   &g1_disp.p,
-                                   &g1_disp.q,
-                                   &g1_disp.r,
-                                   &g2_disp);
+                                   &complementary_filter.filter_output);
+                                  //  &g1_disp.p,
+                                  //  &g1_disp.q,
+                                  //  &g1_disp.r,
+                                  //  &g2_disp);
 }
 
 static void send_ahrs_ref_quat(struct transport_tx *trans, struct link_device *dev)
