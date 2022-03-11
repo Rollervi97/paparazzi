@@ -51,6 +51,11 @@
 #define SERVO_POLE 50.0
 #endif
 
+#ifndef YAW_RATE_COMP_CUTOFF_F
+#define YAW_RATE_COMP_CUTOFF_F 5.0
+#endif
+
+
 #include "stdio.h"
 #include "math.h"
 #include "stdlib.h"
@@ -67,6 +72,7 @@
 
 static struct FirstOrderLowPass propeller_dyn;
 static struct FirstOrderHighPass propeller_dyn_dot;
+Butterworth2LowPass yaw_rate_filt;
 
 float alpha[4]; // = {ALPHA_1, ALPHA_2, ALPHA_3, ALPHA_4};
 float input_quantities[4];
@@ -83,13 +89,12 @@ float servo_rate;
 static void send_nederdrone_yaw_dynamic(struct transport_tx *trans, struct link_device *dev)
 {
   //The estimated G values are scaled, so scale them back before sending
-  float temp = rigid_body_yaw_acceleration;
   pprz_msg_send_NEDERDRONE_YAW_DYNAMIC(trans, dev, AC_ID,
                                    &input_quantities[0],
                                    &input_quantities[1],
                                    &input_quantities[2],
                                    &input_quantities[3],
-                                   &temp);
+                                   &rigid_body_yaw_acceleration);
 }
 
 #endif
@@ -97,8 +102,9 @@ static void send_nederdrone_yaw_dynamic(struct transport_tx *trans, struct link_
 void yaw_dynamic_init(void)
 {
   sample_time = 1.0 / PERIODIC_FREQUENCY;
-  init_first_order_low_pass(&propeller_dyn, PROPELLER_POLE, sample_time, 0.0);
-  init_first_order_high_pass(&propeller_dyn_dot, PROPELLER_POLE, sample_time, 0.0);
+  init_first_order_low_pass(&propeller_dyn, 1 / PROPELLER_POLE, sample_time, 0.0);
+  init_first_order_high_pass(&propeller_dyn_dot, 1 / PROPELLER_POLE, sample_time, 0.0);
+  init_butterworth_2_low_pass(&yaw_rate_filt, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
   // init_first_order_low_pass(&servo_dyn, SERVO_POLE, sample_time, 0.0);
   alpha[0] =  ALPHA_1;
   alpha[1] =  ALPHA_2;
@@ -120,7 +126,11 @@ void yaw_dynamic_init(void)
 
 void yaw_dynamic_run(void){
   // yaw rate is given in rad/s, we need deg/s so we calculate the quantity and then we m
+  
   input_quantities[0] = stateGetBodyRates_f()->r * abs(stateGetBodyRates_f()->r) * 180.0 * 180.0 / M_PI / M_PI;
+  update_butterworth_2_low_pass(&yaw_rate_filt, input_quantities[0]);
+  input_quantities[0] = yaw_rate_filt.o[0];
+
   // finish to code servo dynamic calculation
   // lala2 = BoundAbs(indi.u_in.r*2, 6000) * 37.82 / 6000.0; // servo required deflection in deg
   last_servo_deflection = input_quantities[3];
@@ -141,12 +151,12 @@ void yaw_dynamic_run(void){
 
   //calculation of rigid body model acceleration
   rigid_body_yaw_acceleration = 0.0;
-  printf("Acceleration initiailidez to zero: %f \n", rigid_body_yaw_acceleration);
+  // printf("Acceleration initiailidez to zero: %f \n", rigid_body_yaw_acceleration);
   for (int8_t i=0; i<4; i++){
     rigid_body_yaw_acceleration = rigid_body_yaw_acceleration + input_quantities[i] * alpha[i];
   }
   rigid_body_yaw_acceleration = rigid_body_yaw_acceleration / 180 * M_PI; // getting the acceleration in rad/s^2 
-  printf("Acceleration estimated: %f \n", rigid_body_yaw_acceleration);
+  // printf("Acceleration estimated: %f \n", rigid_body_yaw_acceleration);
 // static inline void read_rigid_body_yaw_acceleration(float *RB_angular_acceleration){
 //   // read rigid body yaw acceleration
 //   *RB_angular_acceleration =  rigid_body_yaw_acceleration;

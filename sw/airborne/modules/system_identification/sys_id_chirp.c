@@ -250,6 +250,6 @@ void sys_id_chirp_add_values(bool motors_on, bool override_on, pprz_t in_cmd[])
 #endif
 }
 
-void GetChirpValue(float *destination){
-    *destination = current_chirp_values[chirp_axis] * 1.0;
-}
+// void GetChirpValue(float *destination){
+//     *destination = current_chirp_values[chirp_axis] * 1.0;
+// }

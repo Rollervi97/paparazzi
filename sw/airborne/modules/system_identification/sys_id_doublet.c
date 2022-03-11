@@ -189,6 +189,6 @@ if (motors_on) {
 #endif
 }
 
-void GetDoubletValue(float *destination){
-    *destination = current_doublet_values[doublet_axis] * 1.0;
-}
+// void GetDoubletValue(float *destination){
+//     *destination = current_doublet_values[doublet_axis] * 1.0;
+// }
