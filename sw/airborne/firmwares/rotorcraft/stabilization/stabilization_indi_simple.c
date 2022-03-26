@@ -74,7 +74,7 @@
 #endif
 
 #ifndef COMPLEMENTARY_FILTER_CROSS_FREQUENCY
-#define COMPLEMENTARY_FILTER_CROSS_FREQUENCY 5.0
+#define COMPLEMENTARY_FILTER_CROSS_FREQUENCY 0.5
 #endif
 
 #ifndef COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF
@@ -103,17 +103,18 @@
 #define STABILIZATION_INDI_FILT_CUTOFF_R 20.0
 #endif
 
-bool use_complementary_feedback = false;
-float new_r_dot_cutoff = COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF;
+uint8_t use_complementary_feedback = false;
+uint8_t high_freq_component_active = false;
+// float new_r_dot_cutoff = COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF;
 float complementary_cross_freq = COMPLEMENTARY_FILTER_CROSS_FREQUENCY;
 float rigid_body_acc = 0.0;
+float old_r = 0.0;
 
 struct Int32Eulers stab_att_sp_euler;
 struct Int32Quat   stab_att_sp_quat;
 
 struct SecondOrderComplementaryButterworth complementary_filter;
-Butterworth2LowPass LowPassComplementary;
-struct FloatRates old_rates;
+// Butterworth2LowPass LowPassComplementary;
 
 static struct FirstOrderLowPass rates_filt_fo[3];
 
@@ -167,9 +168,9 @@ struct IndiVariables indi = {
 static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
 {
   //The estimated G values are scaled, so scale them back before sending
-  struct FloatRates g1_disp;
-  RATES_SMUL(g1_disp, indi.est.g1, INDI_EST_SCALE);
-  float g2_disp = indi.est.g2 * INDI_EST_SCALE;
+  // struct FloatRates g1_disp;
+  // RATES_SMUL(g1_disp, indi.est.g1, INDI_EST_SCALE);
+  // float g2_disp = indi.est.g2 * INDI_EST_SCALE;
 
   pprz_msg_send_STAB_ATTITUDE_INDI(trans, dev, AC_ID,
                                    &indi.rate_d[0],
@@ -180,7 +181,9 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
                                    &indi.angular_accel_ref.r,
                                    &complementary_filter.LowFrequencyComponent,
                                    &complementary_filter.HighFrequencyComponent,
-                                   &complementary_filter.filter_output);
+                                   &complementary_filter.filter_output,
+                                   &use_complementary_feedback,
+                                   &high_freq_component_active);
                                   //  &g1_disp.p,
                                   //  &g1_disp.q,
                                   //  &g1_disp.r,
@@ -222,9 +225,9 @@ void indi_init_filters(void)
   float tau_est = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_ESTIMATION_FILT_CUTOFF);
   float sample_time = 1.0 / PERIODIC_FREQUENCY;
   float tau_complementary = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_CROSS_FREQUENCY);
-  float tau_lp_comp = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
+  // float tau_lp_comp = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
   init_SecondOrderComplementaryButterworth(&complementary_filter, tau_complementary, sample_time, 0.0, 0.0);
-  init_butterworth_2_low_pass(&LowPassComplementary, tau_lp_comp, sample_time, 0.0);
+  // init_butterworth_2_low_pass(&LowPassComplementary, tau_lp_comp, sample_time, 0.0);
   // Filtering of gyroscope and actuators
   for (int8_t i = 0; i < 3; i++) {
     init_butterworth_2_low_pass(&indi.u[i], tau_axis[i], sample_time, 0.0);
@@ -249,14 +252,14 @@ void stabilization_indi_simple_reset_r_filter_cutoff(float new_cutoff) {
   init_first_order_low_pass(&rates_filt_fo[2], time_constant, sample_time, stateGetBodyRates_f()->r);
 }
 
-void stabilization_indi_simple_reset_r_dot_filter_cutoff(float new_r_dot_cf){
-  float sample_time = 1.0 / PERIODIC_FREQUENCY;
-  new_r_dot_cutoff = new_r_dot_cf;
-  float tau = 1.0/(2.0 * M_PI * new_r_dot_cutoff);
-  // init_first_order_low_pass(&rates_filt_fo[2], time_constant, sample_time, stateGetBodyRates_f()->r);
-  init_butterworth_2_low_pass(&LowPassComplementary, tau, sample_time, stateGetBodyRates_f()->r);
-  // printf("Changed low freq low pass filter freq");
-}
+// void stabilization_indi_simple_reset_r_dot_filter_cutoff(float new_r_dot_cf){
+//   float sample_time = 1.0 / PERIODIC_FREQUENCY;
+//   new_r_dot_cutoff = new_r_dot_cf;
+//   float tau = 1.0/(2.0 * M_PI * new_r_dot_cutoff);
+//   init_first_order_low_pass(&rates_filt_fo[2], time_constant, sample_time, stateGetBodyRates_f()->r);
+//   init_butterworth_2_low_pass(&LowPassComplementary, tau, sample_time, stateGetBodyRates_f()->r);
+//   printf("Changed low freq low pass filter freq");
+// }
 
 void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf){
   float sample_time = 1.0 / PERIODIC_FREQUENCY;
@@ -386,14 +389,21 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   struct FloatRates *body_rates = stateGetBodyRates_f();
 
   // Filtering gyroscope signal to calculate angular acceleration
-  update_butterworth_2_low_pass(&LowPassComplementary, stateGetBodyRates_f()->r);
+  // update_butterworth_2_low_pass(&LowPassComplementary, stateGetBodyRates_f()->r);
+  float new_r = stateGetBodyRates_f()->r;
+
   // Finite difference to obtain acceleration
-  float low_freq_comp = (LowPassComplementary.o[0] - LowPassComplementary.o[1]) * PERIODIC_FREQUENCY;
+  float low_freq_comp = (new_r - old_r) * PERIODIC_FREQUENCY;
+  old_r = new_r;
   // get rigid body yaw acceleration
   
   read_rigid_body_yaw_acceleration(&rigid_body_acc);
   // Update yaw angular acceleration from complementary filter
-  update_SecondOrderComplementaryButterworth(&complementary_filter, low_freq_comp, rigid_body_acc);
+  if (high_freq_component_active) {
+    update_SecondOrderComplementaryButterworth(&complementary_filter, low_freq_comp, rigid_body_acc);
+  } else {
+    update_SecondOrderComplementaryButterworth(&complementary_filter, low_freq_comp, 0.0);
+  }
   // new angular acceleration is on complementary_filter.filter_output
 
   filter_pqr(indi.u, &indi.u_act_dyn);

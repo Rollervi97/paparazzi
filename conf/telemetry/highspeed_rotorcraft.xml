@@ -52,7 +52,7 @@
       <message name="DOUBLET"                  period="0.5"/>
       <!--message name="WINDTUNNEL_MEAS"          period="0.1"/-->
       <message name="AHRS_REF_QUAT"            period="0.1"/>
-      <message name="GPS"                      period="0.5" />
+      <message name="GPS"                      period="0.1" />
 
     </mode>
 
