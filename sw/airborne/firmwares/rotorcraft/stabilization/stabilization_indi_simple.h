@@ -98,6 +98,6 @@ extern void stabilization_indi_read_rc(bool in_flight, bool in_carefree, bool co
 extern void stabilization_indi_simple_reset_r_filter_cutoff(float new_cutoff);
 // extern void stabilization_indi_simple_reset_r_dot_filter_cutoff(float new_r_dot_cutoff);
 extern void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf);
-
+extern void stabilization_indi_simple_reset_NF_freq(float newNFfreq);
 #endif /* STABILIZATION_INDI_SIMPLE_H */
 

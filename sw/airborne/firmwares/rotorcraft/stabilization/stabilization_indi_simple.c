@@ -105,8 +105,10 @@
 
 uint8_t use_complementary_feedback = false;
 uint8_t high_freq_component_active = false;
+// uint8_t NF_on = false;
 // float new_r_dot_cutoff = COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF;
 float complementary_cross_freq = COMPLEMENTARY_FILTER_CROSS_FREQUENCY;
+// flaot NF_freq = 9.75;
 float rigid_body_acc = 0.0;
 float old_r = 0.0;
 
@@ -114,6 +116,7 @@ struct Int32Eulers stab_att_sp_euler;
 struct Int32Quat   stab_att_sp_quat;
 
 struct SecondOrderComplementaryButterworth complementary_filter;
+// struct SecondOrderNotchFilter NF;
 // Butterworth2LowPass LowPassComplementary;
 
 static struct FirstOrderLowPass rates_filt_fo[3];
@@ -227,6 +230,7 @@ void indi_init_filters(void)
   float tau_complementary = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_CROSS_FREQUENCY);
   // float tau_lp_comp = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
   init_SecondOrderComplementaryButterworth(&complementary_filter, tau_complementary, sample_time, 0.0, 0.0);
+  // notch_filter_init(&NF, NF_freq, 0.5, (u_int16_t)PERIODIC_FREQUENCY);
   // init_butterworth_2_low_pass(&LowPassComplementary, tau_lp_comp, sample_time, 0.0);
   // Filtering of gyroscope and actuators
   for (int8_t i = 0; i < 3; i++) {
@@ -267,9 +271,14 @@ void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf
   float tau_complementary = 1.0 / (2.0 * M_PI * complementary_cross_freq);
   // float tau_lp_comp = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
   init_SecondOrderComplementaryButterworth(&complementary_filter, tau_complementary, sample_time, complementary_filter.LowFrequencyComponent, complementary_filter.HighFrequencyComponent);
-  // printf("Changed complementary cross freq");
-  
+  // printf("Changed complementary cross freq");  
 }
+
+// void stabilization_indi_simple_reset_NF_freq(float new_NFfreq){
+//   NF_freq = new_NFfreq);
+//   notch_filter_init(&NF, NF_freq, 0.5, (u_int16_t)PERIODIC_FREQUENCY);
+// }
+
 
 void stabilization_indi_enter(void)
 {
@@ -483,6 +492,8 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   Bound(indi.u_in.q, -4500, 4500);
   Bound(indi.u_in.r, -4500, 4500);
 #endif
+
+    // notch_filter_update(&NF, )
 
   /*  INDI feedback */
   stabilization_cmd[COMMAND_ROLL] = indi.u_in.p;

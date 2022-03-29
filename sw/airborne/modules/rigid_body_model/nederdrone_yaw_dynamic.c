@@ -72,6 +72,8 @@
 
 static struct FirstOrderLowPass propeller_dyn;
 static struct FirstOrderHighPass propeller_dyn_dot;
+Butterworth2LowPass prop_signal;
+Butterworth2LowPass servo_signal;
 Butterworth2LowPass yaw_rate_filt;
 
 float alpha[4]; // = {ALPHA_1, ALPHA_2, ALPHA_3, ALPHA_4};
@@ -105,6 +107,10 @@ void yaw_dynamic_init(void)
   init_first_order_low_pass(&propeller_dyn, 1 / PROPELLER_POLE, sample_time, 0.0);
   init_first_order_high_pass(&propeller_dyn_dot, 1 / PROPELLER_POLE, sample_time, 0.0);
   init_butterworth_2_low_pass(&yaw_rate_filt, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
+  init_butterworth_2_low_pass(&yaw_rate_filt, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
+  init_butterworth_2_low_pass(&prop_signal, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
+  init_butterworth_2_low_pass(&servo_signal, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
+
   // init_first_order_low_pass(&servo_dyn, SERVO_POLE, sample_time, 0.0);
   alpha[0] =  ALPHA_1;
   alpha[1] =  ALPHA_2;
@@ -127,24 +133,25 @@ void yaw_dynamic_init(void)
 void yaw_dynamic_run(void){
   // yaw rate is given in rad/s, we need deg/s so we calculate the quantity and then we m
   
-  input_quantities[0] = stateGetBodyRates_f()->r * abs(stateGetBodyRates_f()->r) * 180.0 * 180.0 / M_PI / M_PI;
-  update_butterworth_2_low_pass(&yaw_rate_filt, input_quantities[0]);
-  input_quantities[0] = yaw_rate_filt.o[0];
+  // input_quantities[0] = stateGetBodyRates_f()->r * abs(stateGetBodyRates_f()->r) * 180.0 * 180.0 / M_PI / M_PI;
+  update_butterworth_2_low_pass(&yaw_rate_filt, stateGetBodyRates_f()->r * 180 / M_PI);
+  input_quantities[0] = yaw_rate_filt.o[0] * abs(yaw_rate_filt.o[0]);
 
   // finish to code servo dynamic calculation
   // lala2 = BoundAbs(indi.u_in.r*2, 6000) * 37.82 / 6000.0; // servo required deflection in deg
   last_servo_deflection = input_quantities[3];
-  servo_rate = indi.u_in.r * 2; // calculate command sent to Actuator
+  update_butterworth_2_low_pass(&servo_signal, indi.u_in.r); // applying filtering for controller signal input
+  servo_rate = servo_signal.o[0] * 2; // calculate command sent to Actuator
   BoundAbs(servo_rate, 6000); // bound the command according to the airframe file
   servo_rate = SERVO_POLE * (servo_rate * 37.82 / 6000.0 - last_servo_deflection); // calculating the angular rate of the servo [deg/s]
   BoundAbs(servo_rate, 60/0.15); // limiting servo rate according to specifications
   input_quantities[3] = last_servo_deflection + sample_time * servo_rate; // using limited servo rate to update servo position [deg]
 
+  // filering actuator command as in the INDI actuator synchronization loop
+  update_butterworth_2_low_pass(&prop_signal, last_bounded_yaw_cmd);
+  update_first_order_low_pass(&propeller_dyn, prop_signal.o[0]);
+  update_first_order_high_pass(&propeller_dyn_dot,  prop_signal.o[0]);
   
-  update_first_order_low_pass(&propeller_dyn, last_bounded_yaw_cmd);
-  update_first_order_high_pass(&propeller_dyn_dot, last_bounded_yaw_cmd);
-  // update_first_order_low_pass(&servo_dyn, lala2);
-
   input_quantities[1] = propeller_dyn.last_out; // motor yaw command after motor mixing routine [PPRZ_CMD]
   input_quantities[2] = propeller_dyn_dot.last_out; // motor yaw command after motor mixing routine [PPRZ_CMD/s]
   // input_quantities[3] = servo_dyn.o[0];
