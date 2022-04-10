@@ -29,7 +29,9 @@
 
 #include "std.h"
 #include "filters/low_pass_filter.h"
+#include "filters/high_pass_filter.h"
 #include "modules/actuators/motor_mixing.h"
+// #include "filters/linear_kalman_filter.h"
 // #include "firmwares/rotorcraft/stabilization/stabilization_indi_simple.h"
 
 // struct FirstOrderLowPass propeller_dyn;
@@ -40,9 +42,20 @@
 extern float rigid_body_yaw_acceleration;
 // float servo_rate;
 
+void init_Least_Square_rigid_body(void);
+extern void init_KF_pprz(void);
+extern void init_KF_MAT(void); 
+void init_ND_LTI_model(void);
+void run_Least_Square_rigid_body(void);
+void run_ND_LRI_model(void);
+
+
 extern void yaw_dynamic_init(void);
 extern void yaw_dynamic_run(void);
 
 extern void read_rigid_body_yaw_acceleration(float *RB_angular_acceleration);
+extern void read_KF_pprz_est(float *KF_pprz_acc);
+extern void read_KF_MAT_est(float *KF_pprz_acc);
+extern void read_ND_LTI_model(float *ND_LTI_acc);
 
 #endif

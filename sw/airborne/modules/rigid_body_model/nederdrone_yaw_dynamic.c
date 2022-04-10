@@ -41,8 +41,6 @@
 #define ALPHA_4 4.652
 #endif
 
-
-
 #ifndef PROPELLER_POLE
 #define PROPELLER_POLE 18.0
 #endif
@@ -55,6 +53,17 @@
 #define YAW_RATE_COMP_CUTOFF_F 5.0
 #endif
 
+#ifndef KF_STATE_D
+#define KF_STATE_D 1
+#endif
+
+#ifndef KF_CTRL_D
+#define KF_CTRL_D 2
+#endif
+
+#ifndef KF_MEAS_D
+#define KF_MEAS_D 2
+#endif
 
 #include "stdio.h"
 #include "math.h"
@@ -67,14 +76,30 @@
 #include "filters/high_pass_filter.h"
 #include "modules/actuators/motor_mixing.h"
 #include "modules/rigid_body_model/nederdrone_yaw_dynamic.h"
+#include "filters/linear_kalman_filter.h"
 
 // #include "firmwares/rotorcraft/stabilization/stabilization_indi_simple.h"
 
 static struct FirstOrderLowPass propeller_dyn;
 static struct FirstOrderHighPass propeller_dyn_dot;
+static struct FirstOrderHighPass ND_LTI_model;
+struct linear_kalman_filter KF_pprz;
+struct linear_kalman_filter KF_MAT;
+
+float ND_pole = -4.0;
+float g_prop = -0.0114;
+float g_servo = 5.6575;
+float Q_val = 10.0;
+float R_val = 100.0;
+
+// float U[KF_CTRL_D];
+// float Y[KF_MEAS_D];
+
+
 Butterworth2LowPass prop_signal;
 Butterworth2LowPass servo_signal;
 Butterworth2LowPass yaw_rate_filt;
+Butterworth2LowPass KF_meas;
 
 float alpha[4]; // = {ALPHA_1, ALPHA_2, ALPHA_3, ALPHA_4};
 float input_quantities[4];
@@ -82,6 +107,7 @@ float last_servo_deflection;
 float rigid_body_yaw_acceleration;
 float sample_time;
 float servo_rate;
+float rate[2]; // {current rate, previous rate}
 
 
 
@@ -90,23 +116,23 @@ float servo_rate;
 
 static void send_nederdrone_yaw_dynamic(struct transport_tx *trans, struct link_device *dev)
 {
-  //The estimated G values are scaled, so scale them back before sending
+  float t1 = KF_pprz.Y[0] * M_PI / 180.0;
+  float t2 = KF_MAT.Y[0]; //* M_PI / 180.0;
   pprz_msg_send_NEDERDRONE_YAW_DYNAMIC(trans, dev, AC_ID,
-                                   &input_quantities[0],
-                                   &input_quantities[1],
-                                   &input_quantities[2],
-                                   &input_quantities[3],
-                                   &rigid_body_yaw_acceleration);
+                                  &t1, 
+                                  &KF_MAT.X[0],
+                                  &KF_meas.o[0], 
+                                  &input_quantities[3],
+                                  &rigid_body_yaw_acceleration);
 }
 
 #endif
 
-void yaw_dynamic_init(void)
+void init_Least_Square_rigid_body(void)
 {
-  sample_time = 1.0 / PERIODIC_FREQUENCY;
+  
   init_first_order_low_pass(&propeller_dyn, 1 / PROPELLER_POLE, sample_time, 0.0);
   init_first_order_high_pass(&propeller_dyn_dot, 1 / PROPELLER_POLE, sample_time, 0.0);
-  init_butterworth_2_low_pass(&yaw_rate_filt, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
   init_butterworth_2_low_pass(&yaw_rate_filt, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
   init_butterworth_2_low_pass(&prop_signal, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
   init_butterworth_2_low_pass(&servo_signal, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
@@ -124,13 +150,43 @@ void yaw_dynamic_init(void)
   rigid_body_yaw_acceleration = 0.0;
   last_servo_deflection = 0.0;
   servo_rate = 0.0;
-  // printf("Rigid body mod initilized");
-  #if PERIODIC_TELEMETRY
-    register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_NEDERDRONE_YAW_DYNAMIC, send_nederdrone_yaw_dynamic);
-  #endif
 }
 
-void yaw_dynamic_run(void){
+void init_KF_pprz(void)
+{
+  linear_kalman_filter_init(&KF_pprz, KF_STATE_D, KF_CTRL_D, KF_MEAS_D);
+  KF_pprz.A[0][0] = ND_pole;
+  KF_pprz.B[0][0] = g_prop;
+  KF_pprz.B[0][1] = g_servo;
+  KF_pprz.C[0][0] = 1.0;
+  KF_pprz.C[1][0] = ND_pole;
+  KF_pprz.D[1][0] = g_prop;
+  KF_pprz.D[1][1] = g_servo;
+  KF_pprz.Q[0][0] = Q_val;
+  KF_pprz.R[0][0] = R_val;
+}
+
+void init_KF_MAT(void)
+{
+  linear_kalman_filter_init(&KF_MAT, KF_STATE_D, KF_CTRL_D, KF_MEAS_D);
+  KF_MAT.A[0][0] = ND_pole;
+  KF_MAT.B[0][0] = g_prop;
+  KF_MAT.B[0][1] = g_servo;
+  KF_MAT.C[0][0] = ND_pole;
+  KF_MAT.D[0][0] = g_prop;
+  KF_MAT.D[0][1] = g_servo;
+  KF_MAT.Q[0][0] = Q_val;
+  KF_MAT.R[0][0] = R_val;
+}
+
+void init_ND_LTI_model(void)
+{
+  init_first_order_high_pass(&ND_LTI_model, 1 / -ND_pole, sample_time, 0.0);
+
+}
+
+void run_Least_Square_rigid_body(void)
+{
   // yaw rate is given in rad/s, we need deg/s so we calculate the quantity and then we m
   
   // input_quantities[0] = stateGetBodyRates_f()->r * abs(stateGetBodyRates_f()->r) * 180.0 * 180.0 / M_PI / M_PI;
@@ -164,10 +220,73 @@ void yaw_dynamic_run(void){
   }
   rigid_body_yaw_acceleration = rigid_body_yaw_acceleration / 180 * M_PI; // getting the acceleration in rad/s^2 
   // printf("Acceleration estimated: %f \n", rigid_body_yaw_acceleration);
-// static inline void read_rigid_body_yaw_acceleration(float *RB_angular_acceleration){
-//   // read rigid body yaw acceleration
-//   *RB_angular_acceleration =  rigid_body_yaw_acceleration;
 }
+
+void run_ND_LRI_model(void)
+{
+  // calculate input
+  float input = input_quantities[1] * -0.0114 + input_quantities[3] * 5.6575;
+  update_first_order_high_pass(&ND_LTI_model, input);
+}
+
+void yaw_dynamic_init(void)
+{
+  sample_time = 1.0 / PERIODIC_FREQUENCY;
+  init_Least_Square_rigid_body();
+  // init_KF_MAT();
+  init_KF_pprz();
+
+  init_butterworth_2_low_pass(&KF_meas,  1/(2 * M_PI * 5.0) ,sample_time, 0.0);
+  init_ND_LTI_model();
+  rate[0] = 0;
+  rate[1] = 0;
+  // printf("Rigid body mod initilized");
+  #if PERIODIC_TELEMETRY
+    register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_NEDERDRONE_YAW_DYNAMIC, send_nederdrone_yaw_dynamic);
+  #endif
+}
+
+void yaw_dynamic_run(void){
+  // updating least squared rigid body model estimation
+  float U[KF_CTRL_D];
+  float Y[KF_MEAS_D];
+  run_Least_Square_rigid_body();
+
+  // updating Kalman filter estimation 
+  U[0] = input_quantities[1];
+  U[1] = input_quantities[3];
+  rate[1] = rate[0];
+  rate[0] = stateGetBodyRates_f()->r * 180 / M_PI;
+  update_butterworth_2_low_pass(&KF_meas, (rate[0]-rate[1]) * PERIODIC_FREQUENCY);
+  Y[0] = yaw_rate_filt.o[0];
+  Y[1] = KF_meas.o[0];
+
+  // linear_kalman_filter_predict(&KF_pprz, U);
+  // linear_kalman_filter_update(&KF_pprz, Y);
+
+  // printf("ND_YAW_DYN, U[0] = %f, U[1] = %f, Y[0] = %f \n UPDATING MAT KF \n", U[0], U[1], Y[0]);
+  linear_kalman_filter_predict_and_update(&KF_pprz, U, Y);
+  // linear_kalman_filter_predict_and_update_MATLAB(&KF_MAT, U, Y);
+  
+  // update LTI model
+  run_ND_LRI_model();
+
+}
+
 void read_rigid_body_yaw_acceleration(float *RB_angular_acceleration) {
   *RB_angular_acceleration = rigid_body_yaw_acceleration;
 } // read rigid body yaw acceleration
+
+void read_KF_pprz_est(float *KF_pprz_acc)
+{ 
+  *KF_pprz_acc = KF_pprz.Y[0] * M_PI / 180.0;
+}
+
+void read_KF_MAT_est(float *KF_MAT_acc)
+{ 
+  *KF_MAT_acc = KF_MAT.Y[0] * M_PI / 180.0;
+}
+
+void read_ND_LTI_model(float *ND_LTI_acc){
+  *ND_LTI_acc = ND_LTI_model.last_out * M_PI / 180.0;
+}

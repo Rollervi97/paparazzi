@@ -42,8 +42,8 @@
 #include "modules/radio_control/radio_control.h"
 #include "filters/low_pass_filter.h"
 #include "filters/complementary_filter.h"
+#include "filters/notch_filter.h"
 #include "modules/rigid_body_model/nederdrone_yaw_dynamic.h"
-// #include "modules/rigid_body/nederdrone_yaw_dynamic.h"
 
 
 #if !defined(STABILIZATION_INDI_ACT_DYN_P) && !defined(STABILIZATION_INDI_ACT_DYN_Q) && !defined(STABILIZATION_INDI_ACT_DYN_R)
@@ -105,10 +105,10 @@
 
 uint8_t use_complementary_feedback = false;
 uint8_t high_freq_component_active = false;
-// uint8_t NF_on = false;
+uint8_t NF_on = false;
 // float new_r_dot_cutoff = COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF;
 float complementary_cross_freq = COMPLEMENTARY_FILTER_CROSS_FREQUENCY;
-// flaot NF_freq = 9.75;
+float NF_freq = 9.75;
 float rigid_body_acc = 0.0;
 float old_r = 0.0;
 
@@ -116,7 +116,8 @@ struct Int32Eulers stab_att_sp_euler;
 struct Int32Quat   stab_att_sp_quat;
 
 struct SecondOrderComplementaryButterworth complementary_filter;
-// struct SecondOrderNotchFilter NF;
+struct SecondOrderNotchFilter NF;
+float NF_filtered_cmd_yaw = 0.0;
 // Butterworth2LowPass LowPassComplementary;
 
 static struct FirstOrderLowPass rates_filt_fo[3];
@@ -180,13 +181,17 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
                                    &indi.rate_d[1],
                                    &indi.rate_d[2],
                                    &indi.angular_accel_ref.p,
-                                   &indi.angular_accel_ref.q,
+                                   &indi.u_in.r,
                                    &indi.angular_accel_ref.r,
                                    &complementary_filter.LowFrequencyComponent,
                                    &complementary_filter.HighFrequencyComponent,
                                    &complementary_filter.filter_output,
+                                   &complementary_cross_freq,
                                    &use_complementary_feedback,
-                                   &high_freq_component_active);
+                                   &high_freq_component_active,
+                                   &NF_on,
+                                   &NF_freq,
+                                   &NF_filtered_cmd_yaw);
                                   //  &g1_disp.p,
                                   //  &g1_disp.q,
                                   //  &g1_disp.r,
@@ -230,7 +235,7 @@ void indi_init_filters(void)
   float tau_complementary = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_CROSS_FREQUENCY);
   // float tau_lp_comp = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
   init_SecondOrderComplementaryButterworth(&complementary_filter, tau_complementary, sample_time, 0.0, 0.0);
-  // notch_filter_init(&NF, NF_freq, 0.5, (u_int16_t)PERIODIC_FREQUENCY);
+  notch_filter_init(&NF, NF_freq, 0.5, (float)PERIODIC_FREQUENCY);
   // init_butterworth_2_low_pass(&LowPassComplementary, tau_lp_comp, sample_time, 0.0);
   // Filtering of gyroscope and actuators
   for (int8_t i = 0; i < 3; i++) {
@@ -274,10 +279,10 @@ void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf
   // printf("Changed complementary cross freq");  
 }
 
-// void stabilization_indi_simple_reset_NF_freq(float new_NFfreq){
-//   NF_freq = new_NFfreq);
-//   notch_filter_init(&NF, NF_freq, 0.5, (u_int16_t)PERIODIC_FREQUENCY);
-// }
+void stabilization_indi_simple_reset_NF_freq(float new_NFfreq){
+  NF_freq = new_NFfreq;
+  notch_filter_init(&NF, NF_freq, 0.5, (float)PERIODIC_FREQUENCY);
+}
 
 
 void stabilization_indi_enter(void)
@@ -474,7 +479,13 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
     //add the increment to the total control input
     indi.u_in.p = indi.u[0].o[0] + indi.du.p;
     indi.u_in.q = indi.u[1].o[0] + indi.du.q;
-    indi.u_in.r = indi.u[2].o[0] + indi.du.r;
+     //If the complementary filter is on, do not use the low pass filtered actuator signal for yaw  axis
+    if (use_complementary_feedback){
+      indi.u_in.r = indi.u_act_dyn.r + indi.du.r;
+    } else {
+      indi.u_in.r = indi.u[2].o[0] + indi.du.r;
+    }
+    
 
     // only run the estimation if the commands are not zero.
     lms_estimation();
@@ -493,12 +504,18 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   Bound(indi.u_in.r, -4500, 4500);
 #endif
 
-    // notch_filter_update(&NF, )
-
   /*  INDI feedback */
   stabilization_cmd[COMMAND_ROLL] = indi.u_in.p;
   stabilization_cmd[COMMAND_PITCH] = indi.u_in.q;
   stabilization_cmd[COMMAND_YAW] = indi.u_in.r;
+  notch_filter_update(&NF, &indi.u_in.r, &NF_filtered_cmd_yaw);
+  Bound(NF_filtered_cmd_yaw, -4500, 4500);
+
+  printf("Notch filtered cmd %f, normal cmd %f ------ \n", NF_filtered_cmd_yaw, indi.u_in.r);
+
+  if (NF_on) {
+    stabilization_cmd[COMMAND_YAW] = NF_filtered_cmd_yaw;
+  }
 
   /* bound the result */
   BoundAbs(stabilization_cmd[COMMAND_ROLL], MAX_PPRZ);

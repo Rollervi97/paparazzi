@@ -41,6 +41,8 @@
 
 extern uint8_t use_complementary_feedback;
 extern uint8_t high_freq_component_active;
+extern uint8_t NF_on;
+extern float NF_freq;
 // extern float new_r_dot_cutoff;
 extern float complementary_cross_freq;
 extern float rigid_body_acc;

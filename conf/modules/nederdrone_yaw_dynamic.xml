@@ -42,6 +42,7 @@
   </header>
 
   <init fun="yaw_dynamic_init()"/>
+  <!-- <periodic fun="yaw_dynamic_run()" freq="1" autorun="TRUE"/>  -->
   <periodic fun="yaw_dynamic_run()" freq="PERIODIC_FREQUENCY" autorun="TRUE"/> 
   <makefile>
     <file name="nederdrone_yaw_dynamic.c" />
