@@ -88,9 +88,9 @@ struct linear_kalman_filter KF_pprz;
 float ND_pole = -4.0;
 float g_prop = -0.0114; 
 float g_servo = 5.6575;
-float Q_val = 10.0;
-float R_11_val = 10.0;
-float R_22_val = 100.0;
+float Q_val = 5.0;
+float R_11_val = 5.0;
+float R_22_val = 20.0;
 
 Butterworth2LowPass prop_signal;
 Butterworth2LowPass servo_signal;
@@ -112,9 +112,9 @@ float rate[2]; // {current rate, previous rate}
 
 static void send_nederdrone_yaw_dynamic(struct transport_tx *trans, struct link_device *dev)
 {
-  
+  float t1 = rigid_body_yaw_acceleration * 180.0f / M_PI; 
   pprz_msg_send_NEDERDRONE_YAW_DYNAMIC(trans, dev, AC_ID,
-                                  &rigid_body_yaw_acceleration, // rad/s^2
+                                  &t1, // rad/s^2
                                   &KF_pprz.Y[1], // deg/s^2
                                   &ND_LTI_model.last_out, // deg/s^2
                                   &ND_pole, &g_prop, &g_servo,

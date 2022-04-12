@@ -103,7 +103,7 @@
 #define STABILIZATION_INDI_FILT_CUTOFF_R 20.0
 #endif
 
-uint8_t use_complementary_feedback = false;
+uint8_t use_complementary_feedback = true;
 uint8_t high_freq_component_active = false;
 uint8_t use_LTI_acc = false;
 uint8_t NF_on = false;
@@ -114,6 +114,7 @@ int flag = 0;
 float complementary_cross_freq = COMPLEMENTARY_FILTER_CROSS_FREQUENCY;
 float NF_freq = 9.75;
 float rigid_body_acc = 0.0;
+float KF_rigid_body_acc = 0.0;
 float old_r = 0.0;
 
 struct Int32Eulers stab_att_sp_euler;
@@ -220,20 +221,20 @@ static void send_ahrs_ref_quat(struct transport_tx *trans, struct link_device *d
 
 void stabilization_indi_init(void)
 {
-  printf(" ---------------- initilization -------------------------\n");
+  // printf(" ---------------- initilization -------------------------\n");
   // Initialize filters
   indi_init_filters();
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_STAB_ATTITUDE_INDI, send_att_indi);
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AHRS_REF_QUAT, send_ahrs_ref_quat);
 #endif
-printf("End initialization \n");
+// printf("End initialization \n");
 }
 
 void indi_init_filters(void)
 { 
-  float sample_time = 1 / PERIODIC_FREQUENCY;
-  printf("init filter, show frequency %f sample time %f ---------\n", (float)PERIODIC_FREQUENCY, sample_time);
+  float sample_time = 1.f / PERIODIC_FREQUENCY;
+  // printf("init filter, show frequency %f sample time %f ---------\n", (float)PERIODIC_FREQUENCY, sample_time);
   float tau = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_FILT_CUTOFF);
   float tau_rdot = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_FILT_CUTOFF_RDOT);
   float tau_axis[3] = {tau, tau, tau_rdot};
@@ -255,10 +256,7 @@ void indi_init_filters(void)
   init_first_order_low_pass(&rates_filt_fo[0], time_constants[0], sample_time, stateGetBodyRates_f()->p);
   init_first_order_low_pass(&rates_filt_fo[1], time_constants[1], sample_time, stateGetBodyRates_f()->q);
   init_first_order_low_pass(&rates_filt_fo[2], time_constants[2], sample_time, stateGetBodyRates_f()->r);
-  printf("init filters time const rate filt struct %f time constant %f \n", rates_filt_fo[2].time_const, time_constants[2]);
-  printf("init filters periodic frequency  %i sample time %f \n", PERIODIC_FREQUENCY, sample_time);
-  printf("Show all time constant: %f, %f, %f", rates_filt_fo[0].time_const, rates_filt_fo[1].time_const, rates_filt_fo[2].time_const);
-}
+  }
 
 // Callback function for setting cutoff frequency for r
 void stabilization_indi_simple_reset_r_filter_cutoff(float new_cutoff) {
@@ -266,7 +264,7 @@ void stabilization_indi_simple_reset_r_filter_cutoff(float new_cutoff) {
   indi.cutoff_r = new_cutoff;
   float time_constant = 1.0/(2.0 * M_PI * indi.cutoff_r);
   init_first_order_low_pass(&rates_filt_fo[2], time_constant, sample_time, stateGetBodyRates_f()->r);
-  printf("resetting rate filter cutoff \n");
+ 
 }
 
 void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf){
@@ -298,7 +296,6 @@ void stabilization_indi_enter(void)
   FLOAT_RATES_ZERO(indi.angular_accel_ref);
   FLOAT_RATES_ZERO(indi.u_act_dyn);
   FLOAT_RATES_ZERO(indi.u_in);
-  printf("maybe here \n");
   // Re-initialize filters
   indi_init_filters();
 }
@@ -443,9 +440,7 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   
   // Propagate the filter on the gyroscopes and actuators
   struct FloatRates *body_rates = stateGetBodyRates_f();
-  if (flag < 15) {
-      printf("check 555 indi.angular_accel_ref.r  %f    \n",rate_sp.r);
-      flag += 1;}
+ 
   // Filtering gyroscope signal to calculate angular acceleration
   // update_butterworth_2_low_pass(&LowPassComplementary, stateGetBodyRates_f()->r);
   float new_r = stateGetBodyRates_f()->r;
@@ -468,11 +463,10 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   }
   // new angular acceleration is on complementary_filter.filter_output
   
-  
+  read_KF_pprz_est(&KF_rigid_body_acc);
+
   filter_pqr(indi.u, &indi.u_act_dyn);
   filter_pqr(indi.rate, body_rates);
-  
-      
   
   // Calculate the derivative of the rates
   finite_difference_from_filter(indi.rate_d, indi.rate);
@@ -493,14 +487,7 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   rates_filt.q = body_rates->q;
 #endif
 #if STABILIZATION_INDI_FILTER_YAW_RATE
-  if (flag < 15) {
-        printf("check 7701 indi.angular_accel_ref.r  %f - indi.g1.r %f    \n",body_rates->r, rates_filt.r);
-        flag += 1;}
   rates_filt.r = update_first_order_low_pass(&rates_filt_fo[2], body_rates->r);
-  if (flag < 15) {
-        printf("check 7702 indi.angular_accel_ref.r  %f - indi.g1.r %f    \n",body_rates->r, rates_filt.r);
-        printf("check 7702 filt prop  %f - indi.g1.r %f time const %f   \n",rates_filt_fo[2].last_out, rates_filt_fo[2].last_in, rates_filt_fo[2].time_const);
-        flag += 1;}
 #else
   rates_filt.r = body_rates->r;
 #endif
@@ -526,9 +513,7 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
     indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - complementary_filter.filter_output + indi.g2 * indi.du.r);
   } 
   if (KF_on){
-    read_KF_pprz_est(&rigid_body_acc);
-    
-    indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - complementary_filter.filter_output + indi.g2 * indi.du.r);
+    indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - KF_rigid_body_acc + indi.g2 * indi.du.r);
   }
   if(!use_complementary_feedback & !KF_on) {
     

@@ -25,7 +25,7 @@
       <dl_settings name="Yaw_dyn_param">
         <dl_setting var="ND_pole" min="-30.0" step="-0.1" max="-0.1" shortname="LTI_pole" type="float" module="rigid_body_model/nederdrone_yaw_dynamic" handler="rset_pole"/>
         <dl_setting var="g_prop" min="-0.03" step="0.002" max="0.03" shortname="gProp" type="float" module="rigid_body_model/nederdrone_yaw_dynamic" handler="rset_g_prop"/>
-        <dl_setting var="g_servo" min="-30.0" step="-0.1" max="-0.1" shortname="gServo" type="float" module="rigid_body_model/nederdrone_yaw_dynamic" handler="rset_g_servo"/>
+        <dl_setting var="g_servo" min="1.0" step="0.1" max="10.0" shortname="gServo" type="float" module="rigid_body_model/nederdrone_yaw_dynamic" handler="rset_g_servo"/>
         <dl_setting var="Q_val" min="0.0" step="0.5" max="50.0" shortname="Q_KF" type="float" module="rigid_body_model/nederdrone_yaw_dynamic" handler="rset_Q"/>
         <dl_setting var="R_11_val" min="0.0" step="0.5" max="50.0" shortname="R11_KF" type="float" module="rigid_body_model/nederdrone_yaw_dynamic" handler="rset_R11"/>
         <dl_setting var="R_22_val" min="0.0" step="5.0" max="500.0" shortname="R22_KF" type="float" module="rigid_body_model/nederdrone_yaw_dynamic" handler="rset_R22"/>
