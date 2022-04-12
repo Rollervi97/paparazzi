@@ -105,7 +105,11 @@
 
 uint8_t use_complementary_feedback = false;
 uint8_t high_freq_component_active = false;
+uint8_t use_LTI_acc = false;
 uint8_t NF_on = false;
+uint8_t KF_on = false;
+
+int flag = 0;
 // float new_r_dot_cutoff = COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF;
 float complementary_cross_freq = COMPLEMENTARY_FILTER_CROSS_FREQUENCY;
 float NF_freq = 9.75;
@@ -181,17 +185,18 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
                                    &indi.rate_d[1],
                                    &indi.rate_d[2],
                                    &indi.angular_accel_ref.p,
-                                   &indi.u_in.r,
+                                   &indi.angular_accel_ref.q,
                                    &indi.angular_accel_ref.r,
                                    &complementary_filter.LowFrequencyComponent,
                                    &complementary_filter.HighFrequencyComponent,
                                    &complementary_filter.filter_output,
                                    &complementary_cross_freq,
+                                   &NF_freq,
+                                   &use_LTI_acc,
                                    &use_complementary_feedback,
                                    &high_freq_component_active,
                                    &NF_on,
-                                   &NF_freq,
-                                   &NF_filtered_cmd_yaw);
+                                   &KF_on);
                                   //  &g1_disp.p,
                                   //  &g1_disp.q,
                                   //  &g1_disp.r,
@@ -215,28 +220,27 @@ static void send_ahrs_ref_quat(struct transport_tx *trans, struct link_device *d
 
 void stabilization_indi_init(void)
 {
+  printf(" ---------------- initilization -------------------------\n");
   // Initialize filters
   indi_init_filters();
-
 #if PERIODIC_TELEMETRY
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_STAB_ATTITUDE_INDI, send_att_indi);
   register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_AHRS_REF_QUAT, send_ahrs_ref_quat);
 #endif
+printf("End initialization \n");
 }
 
 void indi_init_filters(void)
-{
-  // tau = 1/(2*pi*Fc)
+{ 
+  float sample_time = 1 / PERIODIC_FREQUENCY;
+  printf("init filter, show frequency %f sample time %f ---------\n", (float)PERIODIC_FREQUENCY, sample_time);
   float tau = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_FILT_CUTOFF);
   float tau_rdot = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_FILT_CUTOFF_RDOT);
   float tau_axis[3] = {tau, tau, tau_rdot};
-  float tau_est = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_ESTIMATION_FILT_CUTOFF);
-  float sample_time = 1.0 / PERIODIC_FREQUENCY;
-  float tau_complementary = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_CROSS_FREQUENCY);
-  // float tau_lp_comp = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
+  float tau_est = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_FILT_CUTOFF_RDOT * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
+  float tau_complementary = 1 / (2.0 * M_PI * complementary_cross_freq);
   init_SecondOrderComplementaryButterworth(&complementary_filter, tau_complementary, sample_time, 0.0, 0.0);
-  notch_filter_init(&NF, NF_freq, 0.5, (float)PERIODIC_FREQUENCY);
-  // init_butterworth_2_low_pass(&LowPassComplementary, tau_lp_comp, sample_time, 0.0);
+  notch_filter_init(&NF, NF_freq, 0.5, PERIODIC_FREQUENCY);
   // Filtering of gyroscope and actuators
   for (int8_t i = 0; i < 3; i++) {
     init_butterworth_2_low_pass(&indi.u[i], tau_axis[i], sample_time, 0.0);
@@ -251,6 +255,9 @@ void indi_init_filters(void)
   init_first_order_low_pass(&rates_filt_fo[0], time_constants[0], sample_time, stateGetBodyRates_f()->p);
   init_first_order_low_pass(&rates_filt_fo[1], time_constants[1], sample_time, stateGetBodyRates_f()->q);
   init_first_order_low_pass(&rates_filt_fo[2], time_constants[2], sample_time, stateGetBodyRates_f()->r);
+  printf("init filters time const rate filt struct %f time constant %f \n", rates_filt_fo[2].time_const, time_constants[2]);
+  printf("init filters periodic frequency  %i sample time %f \n", PERIODIC_FREQUENCY, sample_time);
+  printf("Show all time constant: %f, %f, %f", rates_filt_fo[0].time_const, rates_filt_fo[1].time_const, rates_filt_fo[2].time_const);
 }
 
 // Callback function for setting cutoff frequency for r
@@ -259,16 +266,8 @@ void stabilization_indi_simple_reset_r_filter_cutoff(float new_cutoff) {
   indi.cutoff_r = new_cutoff;
   float time_constant = 1.0/(2.0 * M_PI * indi.cutoff_r);
   init_first_order_low_pass(&rates_filt_fo[2], time_constant, sample_time, stateGetBodyRates_f()->r);
+  printf("resetting rate filter cutoff \n");
 }
-
-// void stabilization_indi_simple_reset_r_dot_filter_cutoff(float new_r_dot_cf){
-//   float sample_time = 1.0 / PERIODIC_FREQUENCY;
-//   new_r_dot_cutoff = new_r_dot_cf;
-//   float tau = 1.0/(2.0 * M_PI * new_r_dot_cutoff);
-//   init_first_order_low_pass(&rates_filt_fo[2], time_constant, sample_time, stateGetBodyRates_f()->r);
-//   init_butterworth_2_low_pass(&LowPassComplementary, tau, sample_time, stateGetBodyRates_f()->r);
-//   printf("Changed low freq low pass filter freq");
-// }
 
 void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf){
   float sample_time = 1.0 / PERIODIC_FREQUENCY;
@@ -276,6 +275,13 @@ void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf
   float tau_complementary = 1.0 / (2.0 * M_PI * complementary_cross_freq);
   // float tau_lp_comp = 1.0 / (2.0 * M_PI * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
   init_SecondOrderComplementaryButterworth(&complementary_filter, tau_complementary, sample_time, complementary_filter.LowFrequencyComponent, complementary_filter.HighFrequencyComponent);
+  if (use_complementary_feedback) {
+    init_butterworth_2_low_pass(&indi.u[2], tau_complementary, sample_time, indi.u[2].o[0]);
+  } else {
+    init_butterworth_2_low_pass(&indi.u[2], 1.0/(2.0*M_PI*STABILIZATION_INDI_FILT_CUTOFF_RDOT), sample_time, indi.u[2].o[0]);
+  }
+  
+
   // printf("Changed complementary cross freq");  
 }
 
@@ -283,7 +289,6 @@ void stabilization_indi_simple_reset_NF_freq(float new_NFfreq){
   NF_freq = new_NFfreq;
   notch_filter_init(&NF, NF_freq, 0.5, (float)PERIODIC_FREQUENCY);
 }
-
 
 void stabilization_indi_enter(void)
 {
@@ -293,7 +298,7 @@ void stabilization_indi_enter(void)
   FLOAT_RATES_ZERO(indi.angular_accel_ref);
   FLOAT_RATES_ZERO(indi.u_act_dyn);
   FLOAT_RATES_ZERO(indi.u_in);
-
+  printf("maybe here \n");
   // Re-initialize filters
   indi_init_filters();
 }
@@ -306,6 +311,42 @@ void stabilization_indi_set_failsafe_setpoint(void)
   stab_att_sp_quat.qx = 0;
   stab_att_sp_quat.qy = 0;
   PPRZ_ITRIG_SIN(stab_att_sp_quat.qz, heading2);
+}
+
+void stabilization_indi_simple_complementary_filter_flag_handler(bool dummy_1)
+{
+  use_complementary_feedback = dummy_1;
+}
+
+void stabilization_indi_simple_high_freq_component_complementary_filter(bool dummy_2)
+{
+  high_freq_component_active = dummy_2;
+  if (dummy_2 & use_complementary_feedback)
+  {
+    stabilization_indi_simple_KF_feedback_handler(false);
+    stabilization_indi_simple_NF_handler(false);
+  }
+}
+
+void stabilization_indi_simple_NF_handler(bool dummy_3)
+{
+  // printf("Notch on off handler -- ");
+  // printf(dummy ? "true" : "false");
+  // printf("\n");
+  NF_on = dummy_3;
+  if (dummy_3){
+    stabilization_indi_simple_KF_feedback_handler(false);
+    stabilization_indi_simple_high_freq_component_complementary_filter(false);
+  }
+}
+
+void stabilization_indi_simple_KF_feedback_handler(bool dummy_4)
+{
+  KF_on = dummy_4;
+  if (dummy_4){
+    stabilization_indi_simple_NF_handler(false);
+    stabilization_indi_simple_high_freq_component_complementary_filter(false);
+  }
 }
 
 /**
@@ -395,13 +436,16 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
 {
   //Propagate input filters
   //first order actuator dynamics
+  
   indi.u_act_dyn.p = indi.u_act_dyn.p + STABILIZATION_INDI_ACT_DYN_P * (indi.u_in.p - indi.u_act_dyn.p);
   indi.u_act_dyn.q = indi.u_act_dyn.q + STABILIZATION_INDI_ACT_DYN_Q * (indi.u_in.q - indi.u_act_dyn.q);
   indi.u_act_dyn.r = indi.u_act_dyn.r + STABILIZATION_INDI_ACT_DYN_R * (indi.u_in.r - indi.u_act_dyn.r);
-
+  
   // Propagate the filter on the gyroscopes and actuators
   struct FloatRates *body_rates = stateGetBodyRates_f();
-
+  if (flag < 15) {
+      printf("check 555 indi.angular_accel_ref.r  %f    \n",rate_sp.r);
+      flag += 1;}
   // Filtering gyroscope signal to calculate angular acceleration
   // update_butterworth_2_low_pass(&LowPassComplementary, stateGetBodyRates_f()->r);
   float new_r = stateGetBodyRates_f()->r;
@@ -410,8 +454,12 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   float low_freq_comp = (new_r - old_r) * PERIODIC_FREQUENCY;
   old_r = new_r;
   // get rigid body yaw acceleration
-  
-  read_rigid_body_yaw_acceleration(&rigid_body_acc);
+  if (use_LTI_acc)
+  {
+    read_ND_LTI_model(&rigid_body_acc);
+  } else {
+    read_rigid_body_yaw_acceleration(&rigid_body_acc);
+  }
   // Update yaw angular acceleration from complementary filter
   if (high_freq_component_active) {
     update_SecondOrderComplementaryButterworth(&complementary_filter, low_freq_comp, rigid_body_acc);
@@ -419,10 +467,13 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
     update_SecondOrderComplementaryButterworth(&complementary_filter, low_freq_comp, 0.0);
   }
   // new angular acceleration is on complementary_filter.filter_output
-
+  
+  
   filter_pqr(indi.u, &indi.u_act_dyn);
   filter_pqr(indi.rate, body_rates);
-
+  
+      
+  
   // Calculate the derivative of the rates
   finite_difference_from_filter(indi.rate_d, indi.rate);
 
@@ -430,6 +481,7 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   //If there is a lot of noise on the gyroscope, it might be good to use the filtered value for feedback.
   //Note that due to the delay, the PD controller may need relaxed gains.
   struct FloatRates rates_filt;
+  
 #if STABILIZATION_INDI_FILTER_ROLL_RATE
   rates_filt.p = update_first_order_low_pass(&rates_filt_fo[0], body_rates->p);
 #else
@@ -441,19 +493,28 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   rates_filt.q = body_rates->q;
 #endif
 #if STABILIZATION_INDI_FILTER_YAW_RATE
+  if (flag < 15) {
+        printf("check 7701 indi.angular_accel_ref.r  %f - indi.g1.r %f    \n",body_rates->r, rates_filt.r);
+        flag += 1;}
   rates_filt.r = update_first_order_low_pass(&rates_filt_fo[2], body_rates->r);
+  if (flag < 15) {
+        printf("check 7702 indi.angular_accel_ref.r  %f - indi.g1.r %f    \n",body_rates->r, rates_filt.r);
+        printf("check 7702 filt prop  %f - indi.g1.r %f time const %f   \n",rates_filt_fo[2].last_out, rates_filt_fo[2].last_in, rates_filt_fo[2].time_const);
+        flag += 1;}
 #else
   rates_filt.r = body_rates->r;
 #endif
 
   //This lets you impose a maximum yaw rate.
   BoundAbs(rate_sp.r, indi.attitude_max_yaw_rate);
+  
 
   // Compute reference angular acceleration:
   indi.angular_accel_ref.p = (rate_sp.p - rates_filt.p) * indi.gains.rate.p;
   indi.angular_accel_ref.q = (rate_sp.q - rates_filt.q) * indi.gains.rate.q;
   indi.angular_accel_ref.r = (rate_sp.r - rates_filt.r) * indi.gains.rate.r;
-
+  
+  
   //Increment in angular acceleration requires increment in control input
   //G1 is the control effectiveness. In the yaw axis, we need something additional: G2.
   //It takes care of the angular acceleration caused by the change in rotation rate of the propellers
@@ -463,27 +524,41 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   if (use_complementary_feedback) {
     // printf("Using complementary filter\n");
     indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - complementary_filter.filter_output + indi.g2 * indi.du.r);
-  } else {
+  } 
+  if (KF_on){
+    read_KF_pprz_est(&rigid_body_acc);
+    
+    indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - complementary_filter.filter_output + indi.g2 * indi.du.r);
+  }
+  if(!use_complementary_feedback & !KF_on) {
+    
     indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - indi.rate_d[2] + indi.g2 * indi.du.r);
   }
   //Don't increment if thrust is off and on the ground
   //without this the inputs will increment to the maximum before even getting in the air.
+  
   if (stabilization_cmd[COMMAND_THRUST] < 300 && !in_flight) {
     FLOAT_RATES_ZERO(indi.u_in);
-
+    
     // If on the gournd, no increments, just proportional control
     indi.u_in.p = indi.du.p;
     indi.u_in.q = indi.du.q;
     indi.u_in.r = indi.du.r;
+    
   } else {
     //add the increment to the total control input
     indi.u_in.p = indi.u[0].o[0] + indi.du.p;
     indi.u_in.q = indi.u[1].o[0] + indi.du.q;
+    
      //If the complementary filter is on, do not use the low pass filtered actuator signal for yaw  axis
-    if (use_complementary_feedback){
+    if (use_complementary_feedback && high_freq_component_active){
+      
       indi.u_in.r = indi.u_act_dyn.r + indi.du.r;
+     
     } else {
+      
       indi.u_in.r = indi.u[2].o[0] + indi.du.r;
+      
     }
     
 
@@ -495,12 +570,7 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
 #if STABILIZATION_INDI_FULL_AUTHORITY
   Bound(indi.u_in.p, -9600, 9600);
   Bound(indi.u_in.q, -9600, 9600);
-  float rlim = 9600 - fabs(indi.u_in.q);
-  Bound(indi.u_in.r, -rlim, rlim);
-  Bound(indi.u_in.r, -9600, 9600);
-#else
-  Bound(indi.u_in.p, -4500, 4500);
-  Bound(indi.u_in.q, -4500, 4500);
+  float rlim = 9600 - fabs(indi.u_in.q);how to obtain the "complement" of a bool variable if clause c
   Bound(indi.u_in.r, -4500, 4500);
 #endif
 
@@ -508,19 +578,24 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   stabilization_cmd[COMMAND_ROLL] = indi.u_in.p;
   stabilization_cmd[COMMAND_PITCH] = indi.u_in.q;
   stabilization_cmd[COMMAND_YAW] = indi.u_in.r;
+
+  
+
   notch_filter_update(&NF, &indi.u_in.r, &NF_filtered_cmd_yaw);
   Bound(NF_filtered_cmd_yaw, -4500, 4500);
 
-  printf("Notch filtered cmd %f, normal cmd %f ------ \n", NF_filtered_cmd_yaw, indi.u_in.r);
+  // printf("Notch filtered cmd %f, normal cmd %f ------ \n", NF_filtered_cmd_yaw, indi.u_in.r);
 
   if (NF_on) {
     stabilization_cmd[COMMAND_YAW] = NF_filtered_cmd_yaw;
   }
-
+  
   /* bound the result */
   BoundAbs(stabilization_cmd[COMMAND_ROLL], MAX_PPRZ);
   BoundAbs(stabilization_cmd[COMMAND_PITCH], MAX_PPRZ);
   BoundAbs(stabilization_cmd[COMMAND_YAW], MAX_PPRZ);
+  // printf("stabilization cmd yaw = %f \n ----------------------- \n", stabilization_cmd[COMMAND_YAW]);
+  
 }
 
 /**

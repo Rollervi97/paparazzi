@@ -8,7 +8,8 @@
      * GPS:         UBlox F9P
      * RC:          SBUS Crossfire
 -->
-
+<!-- the variable periodic frequency seems that it is overwritten to 0 somehow the the stabilization code
+is initilized three times -->
 <airframe name="Neddrone4">
   <description>Neddrone4</description>
 

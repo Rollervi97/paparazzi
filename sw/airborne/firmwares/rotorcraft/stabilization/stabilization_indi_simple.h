@@ -41,8 +41,10 @@
 
 extern uint8_t use_complementary_feedback;
 extern uint8_t high_freq_component_active;
+extern uint8_t use_LTI_acc;
 extern uint8_t NF_on;
 extern float NF_freq;
+extern uint8_t KF_on;
 // extern float new_r_dot_cutoff;
 extern float complementary_cross_freq;
 extern float rigid_body_acc;
@@ -98,6 +100,12 @@ extern void stabilization_indi_rate_run(struct FloatRates rates_sp, bool in_flig
 extern void stabilization_indi_attitude_run(struct Int32Quat quat_sp, bool in_flight);
 extern void stabilization_indi_read_rc(bool in_flight, bool in_carefree, bool coordinated_turn);
 extern void stabilization_indi_simple_reset_r_filter_cutoff(float new_cutoff);
+
+extern void stabilization_indi_simple_complementary_filter_flag_handler(bool dummy_1);
+extern void stabilization_indi_simple_high_freq_component_complementary_filter(bool dummy_2);
+extern void stabilization_indi_simple_NF_handler(bool dummy_3);
+extern void stabilization_indi_simple_KF_feedback_handler(bool dummy_4);
+
 // extern void stabilization_indi_simple_reset_r_dot_filter_cutoff(float new_r_dot_cutoff);
 extern void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf);
 extern void stabilization_indi_simple_reset_NF_freq(float newNFfreq);
