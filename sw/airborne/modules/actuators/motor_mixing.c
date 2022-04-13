@@ -27,6 +27,7 @@
 
 #include "modules/actuators/motor_mixing.h"
 #include "paparazzi.h"
+#include "stdio.h"
 
 //#include <stdint.h>
 #ifndef INT32_MIN
@@ -235,9 +236,10 @@ void motor_mixing_run(bool motors_on, bool override_on, pprz_t in_cmd[])
     Bound(yaw_authority, 0, MAX_PPRZ);
     int32_t bounded_yaw_cmd = in_cmd[COMMAND_YAW];
     BoundAbs(bounded_yaw_cmd, yaw_authority);
-
+    
     last_yaw_cmd = 1.0 * in_cmd[COMMAND_YAW];
     last_bounded_yaw_cmd = 1.0*bounded_yaw_cmd;
+    // printf("Bounded yaw cmd %f , %d , %d \n", last_bounded_yaw_cmd, in_cmd[COMMAND_YAW], max_overflow);
 
     /* min/max of commands */
     int32_t min_cmd = INT32_MAX;

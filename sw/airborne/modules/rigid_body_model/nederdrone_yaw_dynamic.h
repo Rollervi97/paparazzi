@@ -42,7 +42,7 @@ extern float g_prop;
 extern float Q_val;
 extern float R_11_val;
 extern float R_22_val;
-float alpha[4]; // = {ALPHA_1, ALPHA_2, ALPHA_3, ALPHA_4};
+// float alpha[4]; // = {ALPHA_1, ALPHA_2, ALPHA_3, ALPHA_4};
 // float input_quantities[4];
 extern float rigid_body_yaw_acceleration;
 // float servo_rate;

@@ -114,11 +114,11 @@ static void send_nederdrone_yaw_dynamic(struct transport_tx *trans, struct link_
 {
   float t1 = rigid_body_yaw_acceleration * 180.0f / M_PI; 
   pprz_msg_send_NEDERDRONE_YAW_DYNAMIC(trans, dev, AC_ID,
-                                  &t1, // rad/s^2
+                                  &t1, // deg/s^2
                                   &KF_pprz.Y[1], // deg/s^2
                                   &ND_LTI_model.last_out, // deg/s^2
                                   &ND_pole, &g_prop, &g_servo,
-                                  &input_quantities[1], &input_quantities[4]);
+                                  &input_quantities[1], &input_quantities[3]);
 }
 
 #endif
@@ -145,7 +145,7 @@ void init_Least_Square_rigid_body(void)
   rigid_body_yaw_acceleration = 0.0;
   last_servo_deflection = 0.0;
   servo_rate = 0.0;
-  printf("last servo deflection = %f \n", last_servo_deflection);
+  // printf("last servo deflection = %f \n", last_servo_deflection);
 }
 
 void init_KF_pprz(void)
@@ -189,12 +189,16 @@ void run_Least_Square_rigid_body(void)
   // finish to code servo dynamic calculation
   // lala2 = BoundAbs(indi.u_in.r*2, 6000) * 37.82 / 6000.0; // servo required deflection in deg
   last_servo_deflection = input_quantities[3];
+  // printf("check 1 %f \n", indi.u_in.r);
   update_butterworth_2_low_pass(&servo_signal, indi.u_in.r); // applying filtering for controller signal input
   servo_rate = servo_signal.o[0] * 2; // calculate command sent to Actuator
   BoundAbs(servo_rate, 6000); // bound the command according to the airframe file
+  
   servo_rate = SERVO_POLE * (servo_rate * 37.82 / 6000.0 - last_servo_deflection); // calculating the angular rate of the servo [deg/s]
   BoundAbs(servo_rate, 60/0.15); // limiting servo rate according to specifications
-  input_quantities[3] = last_servo_deflection + sample_time * servo_rate; // using limited servo rate to update servo position [deg]
+  // printf("check super %f ---- %f ----- %f\n", last_servo_deflection, sample_time, servo_rate);
+  input_quantities[3] = last_servo_deflection + sample_time * servo_rate;
+  BoundAbs(input_quantities[3], 37.82); // using limited servo rate to update servo position [deg]
   // printf("Last servo def %f, sample_Time = %f, servo_rate = %f \n servo contrib %f \n", last_servo_deflection, sample_time, servo_rate, input_quantities[3]);
   // filering actuator command as in the INDI actuator synchronization loop
   update_butterworth_2_low_pass(&prop_signal, last_bounded_yaw_cmd);
@@ -212,6 +216,7 @@ void run_Least_Square_rigid_body(void)
     rigid_body_yaw_acceleration = rigid_body_yaw_acceleration + input_quantities[i] * alpha[i];
   }
   rigid_body_yaw_acceleration = rigid_body_yaw_acceleration / 180 * M_PI; // getting the acceleration in rad/s^2 
+  // printf("check final %f ---- %f \n \n\n\n", input_quantities[1], input_quantities[3]);
   // printf("Acceleration estimated: %f \n", rigid_body_yaw_acceleration);
 }
 

@@ -103,7 +103,7 @@
 #define STABILIZATION_INDI_FILT_CUTOFF_R 20.0
 #endif
 
-uint8_t use_complementary_feedback = true;
+uint8_t use_complementary_feedback = false;
 uint8_t high_freq_component_active = false;
 uint8_t use_LTI_acc = false;
 uint8_t NF_on = false;
@@ -233,7 +233,7 @@ void stabilization_indi_init(void)
 
 void indi_init_filters(void)
 { 
-  float sample_time = 1.f / PERIODIC_FREQUENCY;
+  float sample_time = 1.0f / PERIODIC_FREQUENCY;
   // printf("init filter, show frequency %f sample time %f ---------\n", (float)PERIODIC_FREQUENCY, sample_time);
   float tau = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_FILT_CUTOFF);
   float tau_rdot = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_FILT_CUTOFF_RDOT);
@@ -264,7 +264,6 @@ void stabilization_indi_simple_reset_r_filter_cutoff(float new_cutoff) {
   indi.cutoff_r = new_cutoff;
   float time_constant = 1.0/(2.0 * M_PI * indi.cutoff_r);
   init_first_order_low_pass(&rates_filt_fo[2], time_constant, sample_time, stateGetBodyRates_f()->r);
- 
 }
 
 void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf){
@@ -313,6 +312,9 @@ void stabilization_indi_set_failsafe_setpoint(void)
 void stabilization_indi_simple_complementary_filter_flag_handler(bool dummy_1)
 {
   use_complementary_feedback = dummy_1;
+  if (!dummy_1){
+    init_butterworth_2_low_pass(&indi.u[2], 1.0/(2.0*M_PI*STABILIZATION_INDI_FILT_CUTOFF_RDOT), sample_time, indi.u[2].o[0]);
+  }
 }
 
 void stabilization_indi_simple_high_freq_component_complementary_filter(bool dummy_2)
@@ -508,6 +510,7 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   //(they have significant inertia, see the paper mentioned in the header for more explanation)
   indi.du.p = 1.0 / indi.g1.p * (indi.angular_accel_ref.p - indi.rate_d[0]);
   indi.du.q = 1.0 / indi.g1.q * (indi.angular_accel_ref.q - indi.rate_d[1]);
+  indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - indi.rate_d[2] + indi.g2 * indi.du.r);
   if (use_complementary_feedback) {
     // printf("Using complementary filter\n");
     indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - complementary_filter.filter_output + indi.g2 * indi.du.r);
@@ -515,17 +518,14 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   if (KF_on){
     indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - KF_rigid_body_acc + indi.g2 * indi.du.r);
   }
-  if(!use_complementary_feedback & !KF_on) {
-    
-    indi.du.r = 1.0 / (indi.g1.r + indi.g2) * (indi.angular_accel_ref.r - indi.rate_d[2] + indi.g2 * indi.du.r);
-  }
+  
   //Don't increment if thrust is off and on the ground
   //without this the inputs will increment to the maximum before even getting in the air.
   
   if (stabilization_cmd[COMMAND_THRUST] < 300 && !in_flight) {
     FLOAT_RATES_ZERO(indi.u_in);
     
-    // If on the gournd, no increments, just proportional control
+    // If on the ground, no increments, just proportional control
     indi.u_in.p = indi.du.p;
     indi.u_in.q = indi.du.q;
     indi.u_in.r = indi.du.r;
@@ -535,8 +535,8 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
     indi.u_in.p = indi.u[0].o[0] + indi.du.p;
     indi.u_in.q = indi.u[1].o[0] + indi.du.q;
     
-     //If the complementary filter is on, do not use the low pass filtered actuator signal for yaw  axis
-    if (use_complementary_feedback && high_freq_component_active){
+     //If the complementary filter is on, do not use the low pass filtered actuator signal for yaw  axis && high_freq_component_active
+    if (use_complementary_feedback){
       
       indi.u_in.r = indi.u_act_dyn.r + indi.du.r;
      
@@ -545,17 +545,24 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
       indi.u_in.r = indi.u[2].o[0] + indi.du.r;
       
     }
+
+    
     
 
     // only run the estimation if the commands are not zero.
     lms_estimation();
   }
-
+  // printf("indi u in run %f ----- %f --------- %f \n\n\n", indi.u[2].o[0], indi.u_act_dyn.r, indi.du.r);
   //bound the total control input
 #if STABILIZATION_INDI_FULL_AUTHORITY
   Bound(indi.u_in.p, -9600, 9600);
   Bound(indi.u_in.q, -9600, 9600);
-  float rlim = 9600 - fabs(indi.u_in.q);how to obtain the "complement" of a bool variable if clause c
+  float rlim = 9600 - fabs(indi.u_in.q);
+  Bound(indi.u_in.r, -rlim, rlim);
+  Bound(indi.u_in.r, -9600, 9600);
+#else
+  Bound(indi.u_in.p, -4500, 4500);
+  Bound(indi.u_in.q, -4500, 4500);
   Bound(indi.u_in.r, -4500, 4500);
 #endif
 
@@ -580,6 +587,7 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   BoundAbs(stabilization_cmd[COMMAND_PITCH], MAX_PPRZ);
   BoundAbs(stabilization_cmd[COMMAND_YAW], MAX_PPRZ);
   // printf("stabilization cmd yaw = %f \n ----------------------- \n", stabilization_cmd[COMMAND_YAW]);
+  // printf("indi u in run %f \n\n\n", indi.u_in.r);
   
 }
 
