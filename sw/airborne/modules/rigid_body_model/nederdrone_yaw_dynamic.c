@@ -85,9 +85,9 @@ static struct FirstOrderHighPass propeller_dyn_dot;
 static struct FirstOrderHighPass ND_LTI_model;
 struct linear_kalman_filter KF_pprz;
 
-float ND_pole = -4.0;
-float g_prop = -0.0114; 
-float g_servo = 5.6575;
+float ND_pole = -2.7;
+float g_prop = 0.0004; 
+float g_servo = 4.456;
 float Q_val = 5.0;
 float R_11_val = 5.0;
 float R_22_val = 20.0;

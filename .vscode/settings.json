@@ -12,6 +12,16 @@
         "mateksys_3901_l0x.h": "c",
         "stdlib.h": "c",
         "iterator": "cpp",
-        "tensor": "cpp"
+        "tensor": "cpp",
+        "array": "c",
+        "*.tcc": "c",
+        "memory": "c",
+        "future": "c",
+        "istream": "c",
+        "functional": "c",
+        "tuple": "c",
+        "utility": "c",
+        "variant": "c"
     },
+    "cmake.configureOnOpen": false,
 }

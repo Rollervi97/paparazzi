@@ -285,6 +285,7 @@ void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf
 void stabilization_indi_simple_reset_NF_freq(float new_NFfreq){
   NF_freq = new_NFfreq;
   notch_filter_init(&NF, NF_freq, 0.5, (float)PERIODIC_FREQUENCY);
+  // stabilization_indi_simple_reset_complementary_cross_frequency(5.0);
 }
 
 void stabilization_indi_enter(void)
@@ -313,7 +314,7 @@ void stabilization_indi_simple_complementary_filter_flag_handler(bool dummy_1)
 {
   use_complementary_feedback = dummy_1;
   if (!dummy_1){
-    init_butterworth_2_low_pass(&indi.u[2], 1.0/(2.0*M_PI*STABILIZATION_INDI_FILT_CUTOFF_RDOT), sample_time, indi.u[2].o[0]);
+    init_butterworth_2_low_pass(&indi.u[2], 1.0/(2.0*M_PI*STABILIZATION_INDI_FILT_CUTOFF_RDOT), 1/PERIODIC_FREQUENCY, indi.u[2].o[0]);
   }
 }
 

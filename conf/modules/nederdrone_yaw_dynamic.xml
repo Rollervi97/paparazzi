@@ -23,7 +23,7 @@
   <settings>
     <dl_settings name="ND_yaw_dyn">
       <dl_settings name="Yaw_dyn_param">
-        <dl_setting var="ND_pole" min="-30.0" step="-0.1" max="-0.1" shortname="LTI_pole" type="float" module="rigid_body_model/nederdrone_yaw_dynamic" handler="rset_pole"/>
+        <dl_setting var="ND_pole" min="-62.8" step="-0.1" max="-0.1" shortname="LTI_pole" type="float" module="rigid_body_model/nederdrone_yaw_dynamic" handler="rset_pole"/>
         <dl_setting var="g_prop" min="-0.03" step="0.002" max="0.03" shortname="gProp" type="float" module="rigid_body_model/nederdrone_yaw_dynamic" handler="rset_g_prop"/>
         <dl_setting var="g_servo" min="1.0" step="0.1" max="10.0" shortname="gServo" type="float" module="rigid_body_model/nederdrone_yaw_dynamic" handler="rset_g_servo"/>
         <dl_setting var="Q_val" min="0.0" step="0.5" max="50.0" shortname="Q_KF" type="float" module="rigid_body_model/nederdrone_yaw_dynamic" handler="rset_Q"/>
@@ -38,8 +38,8 @@
   </header>
 
   <init fun="yaw_dynamic_init()"/>
-  <periodic fun="yaw_dynamic_run()" freq="1" autorun="TRUE"/> 
-  <!-- <periodic fun="yaw_dynamic_run()" freq="PERIODIC_FREQUENCY" autorun="TRUE"/>  -->
+  <!-- <periodic fun="yaw_dynamic_run()" freq="1" autorun="TRUE"/>  -->
+  <periodic fun="yaw_dynamic_run()" freq="PERIODIC_FREQUENCY" autorun="TRUE"/> 
   <makefile>
     <file name="nederdrone_yaw_dynamic.c" />
   </makefile>
