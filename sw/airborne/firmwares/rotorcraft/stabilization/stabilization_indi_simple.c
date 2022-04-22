@@ -103,7 +103,7 @@
 #define STABILIZATION_INDI_FILT_CUTOFF_R 20.0
 #endif
 
-uint8_t use_complementary_feedback = false;
+uint8_t use_complementary_feedback = true;
 uint8_t high_freq_component_active = false;
 uint8_t use_LTI_acc = false;
 uint8_t NF_on = false;
@@ -536,12 +536,14 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
     indi.u_in.p = indi.u[0].o[0] + indi.du.p;
     indi.u_in.q = indi.u[1].o[0] + indi.du.q;
     
-     //If the complementary filter is on, do not use the low pass filtered actuator signal for yaw  axis && high_freq_component_active
-    if (use_complementary_feedback){
+     //If the complementary filter is on or the the Kalman filter is on, do not use the low pass filtered actuator signal for yaw axis 
+    if ((use_complementary_feedback && high_freq_component_active) || KF_on){
       
       indi.u_in.r = indi.u_act_dyn.r + indi.du.r;
      
-    } else {
+    } 
+    // if the notch filter is on -> high_freq_component_active = false or the low pass filter solution is working, then use the low pass filtered signal for yaw axis
+    else {
       
       indi.u_in.r = indi.u[2].o[0] + indi.du.r;
       
