@@ -91,9 +91,11 @@ float g_servo = 5.535;
 float Q_val = 5.0;
 float R_11_val = 5.0;
 float R_22_val = 20.0;
+float dum = 0.0;
+float rate_filt_freq = YAW_RATE_COMP_CUTOFF_F;
 
-Butterworth2LowPass prop_signal;
-Butterworth2LowPass servo_signal;
+// Butterworth2LowPass prop_signal;
+// Butterworth2LowPass servo_signal;
 Butterworth2LowPass yaw_rate_filt;
 Butterworth2LowPass KF_meas;
 
@@ -112,13 +114,14 @@ float rate[2]; // {current rate, previous rate}
 
 static void send_nederdrone_yaw_dynamic(struct transport_tx *trans, struct link_device *dev)
 {
-  float t1 = rigid_body_yaw_acceleration * 180.0f / M_PI; 
   pprz_msg_send_NEDERDRONE_YAW_DYNAMIC(trans, dev, AC_ID,
-                                  &t1, // deg/s^2
+                                  &rigid_body_yaw_acceleration, // deg/s^2
                                   &KF_pprz.Y[1], // deg/s^2
                                   &ND_LTI_model.last_out, // deg/s^2
                                   &ND_pole, &g_prop, &g_servo,
-                                  &input_quantities[1], &input_quantities[3]);
+                                  &alpha[0], &alpha[1], &alpha[2], &alpha[3], 
+                                  &input_quantities[0], &input_quantities[1], &input_quantities[2], &input_quantities[3], 
+                                  &rate_filt_freq);
 }
 
 #endif
@@ -128,9 +131,9 @@ void init_Least_Square_rigid_body(void)
   
   init_first_order_low_pass(&propeller_dyn, 1 / PROPELLER_POLE, sample_time, 0.0);
   init_first_order_high_pass(&propeller_dyn_dot, 1 / PROPELLER_POLE, sample_time, 0.0);
-  init_butterworth_2_low_pass(&yaw_rate_filt, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
-  init_butterworth_2_low_pass(&prop_signal, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
-  init_butterworth_2_low_pass(&servo_signal, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
+  init_butterworth_2_low_pass(&yaw_rate_filt, 1/(2 * M_PI * rate_filt_freq) ,sample_time, 0.0);
+  // init_butterworth_2_low_pass(&prop_signal, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
+  // init_butterworth_2_low_pass(&servo_signal, 1/(2 * M_PI * YAW_RATE_COMP_CUTOFF_F) ,sample_time, 0.0);
 
   // init_first_order_low_pass(&servo_dyn, SERVO_POLE, sample_time, 0.0);
   alpha[0] =  ALPHA_1;
@@ -186,12 +189,11 @@ void run_Least_Square_rigid_body(void)
   update_butterworth_2_low_pass(&yaw_rate_filt, stateGetBodyRates_f()->r * 180 / M_PI);
   input_quantities[0] = yaw_rate_filt.o[0] * abs(yaw_rate_filt.o[0]);
   // printf("last controller cmd %f \n", indi.u_in.r);
-  // finish to code servo dynamic calculation
-  // lala2 = BoundAbs(indi.u_in.r*2, 6000) * 37.82 / 6000.0; // servo required deflection in deg
   last_servo_deflection = input_quantities[3];
   // printf("check 1 %f \n", indi.u_in.r);
-  update_butterworth_2_low_pass(&servo_signal, indi.u_in.r); // applying filtering for controller signal input
-  servo_rate = servo_signal.o[0] * 2; // calculate command sent to Actuator
+  // update_butterworth_2_low_pass(&servo_signal, indi.u_in.r); // applying filtering for controller signal input -- edit already filtered and bounded
+
+  servo_rate = indi.u_in.r * 2; // calculate command sent to Actuator
   BoundAbs(servo_rate, 6000); // bound the command according to the airframe file
   
   servo_rate = SERVO_POLE * (servo_rate * 37.82 / 6000.0 - last_servo_deflection); // calculating the angular rate of the servo [deg/s]
@@ -201,13 +203,13 @@ void run_Least_Square_rigid_body(void)
   BoundAbs(input_quantities[3], 37.82); // using limited servo rate to update servo position [deg]
   // printf("Last servo def %f, sample_Time = %f, servo_rate = %f \n servo contrib %f \n", last_servo_deflection, sample_time, servo_rate, input_quantities[3]);
   // filering actuator command as in the INDI actuator synchronization loop
-  update_butterworth_2_low_pass(&prop_signal, last_bounded_yaw_cmd);
-  update_first_order_low_pass(&propeller_dyn, prop_signal.o[0]);
-  update_first_order_high_pass(&propeller_dyn_dot,  prop_signal.o[0]);
+  // update_butterworth_2_low_pass(&prop_signal, last_bounded_yaw_cmd); -- edit propeller signal already filtered and bounded
+  // first order dynamic for propeller and propeller derivative
+  update_first_order_low_pass(&propeller_dyn, last_bounded_yaw_cmd);
+  update_first_order_high_pass(&propeller_dyn_dot,  last_bounded_yaw_cmd);
   
   input_quantities[1] = propeller_dyn.last_out; // motor yaw command after motor mixing routine [PPRZ_CMD]
   input_quantities[2] = propeller_dyn_dot.last_out; // motor yaw command after motor mixing routine [PPRZ_CMD/s]
-  // input_quantities[3] = servo_dyn.o[0];
 
   //calculation of rigid body model acceleration
   rigid_body_yaw_acceleration = 0.0;
@@ -215,7 +217,7 @@ void run_Least_Square_rigid_body(void)
   for (int8_t i=0; i<4; i++){
     rigid_body_yaw_acceleration = rigid_body_yaw_acceleration + input_quantities[i] * alpha[i];
   }
-  rigid_body_yaw_acceleration = rigid_body_yaw_acceleration / 180 * M_PI; // getting the acceleration in rad/s^2 
+  rigid_body_yaw_acceleration = rigid_body_yaw_acceleration; // getting the acceleration in rad/s^2 
   // printf("check final %f ---- %f \n \n\n\n", input_quantities[1], input_quantities[3]);
   // printf("Acceleration estimated: %f \n", rigid_body_yaw_acceleration);
 }
@@ -228,24 +230,45 @@ void run_ND_LRI_model(void)
   update_first_order_high_pass(&ND_LTI_model, input);
 }
 
-void yaw_dynamic_init(void)
-{
-  sample_time = 1.0 / PERIODIC_FREQUENCY;
-  init_Least_Square_rigid_body();
-  init_KF_pprz();
-
-  init_butterworth_2_low_pass(&KF_meas,  1/(2 * M_PI * 5.0) ,sample_time, 0.0);
-  init_ND_LTI_model(true);
-  rate[0] = 0;
-  rate[1] = 0;
-  // printf("LS_RB acc = %f, Kalman filter acc = %f, LTI model acc = %f \n", rigid_body_yaw_acceleration, KF_pprz.Y[1], ND_LTI_model.last_out);
-
-  // printf("Rigid body mod initilized");
-  #if PERIODIC_TELEMETRY
-    register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_NEDERDRONE_YAW_DYNAMIC, send_nederdrone_yaw_dynamic);
-  #endif
-}
-
+// void nederdrone_yaw_dynamic_rset_MODE(float dum){
+//   if (dum == 0){
+//     alpha[0] =  ALPHA_1;
+//     alpha[1] =  ALPHA_2;
+//     alpha[2] =  ALPHA_3;
+//     alpha[3] =  ALPHA_4;
+//   } else if (dum == 1)
+//   {
+//     alpha[0] =  0.0;
+//     alpha[2] =  ALPHA_3;
+//     alpha[3] =  ALPHA_4;
+//   } else if (dum == 2)
+//   {
+//     alpha[0] =  ALPHA_1;
+//     alpha[2] =  0.0;
+//     alpha[3] =  ALPHA_4;
+//   }  else if (dum == 3)
+//   {
+//     alpha[0] =  ALPHA_1;
+//     alpha[2] =  ALPHA_3;
+//     alpha[3] =  0.0;
+//   } else if (dum == 4)
+//   {
+//     alpha[0] =  0.0;
+//     alpha[2] =  0.0;
+//     alpha[3] =  ALPHA_4;
+//   } else if (dum == 5)
+//   {
+//     alpha[0] =  0.0;
+//     alpha[2] =  ALPHA_3;
+//     alpha[3] =  0.0;
+//   }
+//   else if (dum == 6)
+//   {
+//     alpha[0] =  0.0;
+//     alpha[2] =  0.0;
+//     alpha[3] =  ALPHA_4;
+//   }
+// }
 
 void nederdrone_yaw_dynamic_rset_pole(float dummy_11){
   ND_pole = dummy_11;
@@ -278,6 +301,45 @@ void nederdrone_yaw_dynamic_rset_R22(float dummy_66){
   init_KF_pprz();
 }
 
+extern void nederdrone_yaw_dynamic_rset_alpha_rate (float arate){
+  alpha[0] = arate;
+}
+
+extern void nederdrone_yaw_dynamic_rset_alpha_prop (float aprop){
+  alpha[1] = aprop;
+}
+
+extern void nederdrone_yaw_dynamic_rset_alpha_prop_d (float apropd){
+  alpha[2] = apropd;
+}
+
+extern void nederdrone_yaw_dynamic_rset_alpha_servo (float aservo){
+  alpha[3] = aservo;
+}
+
+extern void nederdrone_yaw_dynamic_rset_LPF_rate_freq (float LPFrateF){
+  rate_filt_freq = LPFrateF;
+  init_butterworth_2_low_pass(&yaw_rate_filt, 1/(2 * M_PI * rate_filt_freq) ,sample_time, yaw_rate_filt.o[0]);
+}
+
+void yaw_dynamic_init(void)
+{
+  sample_time = 1.0 / PERIODIC_FREQUENCY;
+  init_Least_Square_rigid_body();
+  init_KF_pprz();
+
+  init_butterworth_2_low_pass(&KF_meas,  1/(2 * M_PI * 5.0) ,sample_time, 0.0);
+  init_ND_LTI_model(true);
+  rate[0] = 0;
+  rate[1] = 0;
+  // printf("LS_RB acc = %f, Kalman filter acc = %f, LTI model acc = %f \n", rigid_body_yaw_acceleration, KF_pprz.Y[1], ND_LTI_model.last_out);
+
+  // printf("Rigid body mod initilized");
+  #if PERIODIC_TELEMETRY
+    register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_NEDERDRONE_YAW_DYNAMIC, send_nederdrone_yaw_dynamic);
+  #endif
+}
+
 void yaw_dynamic_run(void){
   // updating least squared rigid body model estimation
   float U[KF_CTRL_D];
@@ -304,7 +366,7 @@ void yaw_dynamic_run(void){
 }
 
 void read_rigid_body_yaw_acceleration(float *RB_angular_acceleration) {
-  *RB_angular_acceleration = rigid_body_yaw_acceleration;
+  *RB_angular_acceleration = rigid_body_yaw_acceleration / 180 * M_PI;
 } // read rigid body yaw acceleration
 
 void read_KF_pprz_est(float *KF_pprz_acc)

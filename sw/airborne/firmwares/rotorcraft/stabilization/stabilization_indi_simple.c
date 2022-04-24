@@ -116,6 +116,7 @@ float NF_freq = 9.75;
 float rigid_body_acc = 0.0;
 float KF_rigid_body_acc = 0.0;
 float old_r = 0.0;
+float NF_bandwidth = 0.5;
 
 struct Int32Eulers stab_att_sp_euler;
 struct Int32Quat   stab_att_sp_quat;
@@ -192,10 +193,10 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
                                    &complementary_filter.HighFrequencyComponent,
                                    &complementary_filter.filter_output,
                                    &complementary_cross_freq,
-                                   &NF_freq,
+                                   &NF_freq, &NF_filtered_cmd_yaw,
                                    &use_LTI_acc,
                                    &use_complementary_feedback,
-                                   &high_freq_component_active,
+                                   &high_freq_component_active, 
                                    &NF_on,
                                    &KF_on);
                                   //  &g1_disp.p,
@@ -241,7 +242,7 @@ void indi_init_filters(void)
   float tau_est = 1.0 / (2.0 * M_PI * STABILIZATION_INDI_FILT_CUTOFF_RDOT * COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF);
   float tau_complementary = 1 / (2.0 * M_PI * complementary_cross_freq);
   init_SecondOrderComplementaryButterworth(&complementary_filter, tau_complementary, sample_time, 0.0, 0.0);
-  notch_filter_init(&NF, NF_freq, 0.5, PERIODIC_FREQUENCY);
+  notch_filter_init(&NF, NF_freq, NF_bandwidth, PERIODIC_FREQUENCY);
   // Filtering of gyroscope and actuators
   for (int8_t i = 0; i < 3; i++) {
     init_butterworth_2_low_pass(&indi.u[i], tau_axis[i], sample_time, 0.0);
@@ -286,6 +287,11 @@ void stabilization_indi_simple_reset_NF_freq(float new_NFfreq){
   NF_freq = new_NFfreq;
   notch_filter_init(&NF, NF_freq, 0.5, (float)PERIODIC_FREQUENCY);
   // stabilization_indi_simple_reset_complementary_cross_frequency(5.0);
+}
+
+void stabilization_indi_simple_reset_NF_bandwidth(float newNFb){
+  NF_bandwidth = newNFb;
+  notch_filter_set_bandwidth(&NF, NF_bandwidth);
 }
 
 void stabilization_indi_enter(void)
@@ -557,6 +563,14 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   }
   // printf("indi u in run %f ----- %f --------- %f \n\n\n", indi.u[2].o[0], indi.u_act_dyn.r, indi.du.r);
   //bound the total control input
+  // save filtered cmd to variable NF_filtered_cmd_yaw
+  notch_filter_update(&NF, &indi.u_in.r, &NF_filtered_cmd_yaw);
+  //if notch filter on, then make the filtered command the input command
+  if (NF_on){
+    indi.u_in.r = NF_filtered_cmd_yaw;
+  }
+
+  
 #if STABILIZATION_INDI_FULL_AUTHORITY
   Bound(indi.u_in.p, -9600, 9600);
   Bound(indi.u_in.q, -9600, 9600);
@@ -574,16 +588,11 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   stabilization_cmd[COMMAND_PITCH] = indi.u_in.q;
   stabilization_cmd[COMMAND_YAW] = indi.u_in.r;
 
-  
-
-  notch_filter_update(&NF, &indi.u_in.r, &NF_filtered_cmd_yaw);
-  Bound(NF_filtered_cmd_yaw, -4500, 4500);
-
   // printf("Notch filtered cmd %f, normal cmd %f ------ \n", NF_filtered_cmd_yaw, indi.u_in.r);
 
-  if (NF_on) {
-    stabilization_cmd[COMMAND_YAW] = NF_filtered_cmd_yaw;
-  }
+  
+  // NF_filtered_cmd_yaw = indi.u_in.r;
+  
   
   /* bound the result */
   BoundAbs(stabilization_cmd[COMMAND_ROLL], MAX_PPRZ);

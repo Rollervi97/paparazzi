@@ -42,7 +42,9 @@ extern float g_prop;
 extern float Q_val;
 extern float R_11_val;
 extern float R_22_val;
-// float alpha[4]; // = {ALPHA_1, ALPHA_2, ALPHA_3, ALPHA_4};
+// extern float dum;
+extern float rate_filt_freq;
+extern float alpha[4]; // = {ALPHA_1, ALPHA_2, ALPHA_3, ALPHA_4};
 // float input_quantities[4];
 extern float rigid_body_yaw_acceleration;
 // float servo_rate;
@@ -63,6 +65,14 @@ extern void nederdrone_yaw_dynamic_rset_g_servo(float dummy_33);
 extern void nederdrone_yaw_dynamic_rset_Q(float dummy_44);
 extern void nederdrone_yaw_dynamic_rset_R11(float dummy_55);
 extern void nederdrone_yaw_dynamic_rset_R22(float dummy_66);
+// extern void nederdrone_yaw_dynamic_rset_MODE(float dum);
+
+extern void nederdrone_yaw_dynamic_rset_alpha_rate (float arate);
+extern void nederdrone_yaw_dynamic_rset_alpha_prop (float aprop);
+extern void nederdrone_yaw_dynamic_rset_alpha_prop_d (float apropd);
+extern void nederdrone_yaw_dynamic_rset_alpha_servo (float aservo);
+
+extern void nederdrone_yaw_dynamic_rset_LPF_rate_freq (float LPFrateF);
 
 extern void read_rigid_body_yaw_acceleration(float *RB_angular_acceleration);
 extern void read_KF_pprz_est(float *KF_pprz_acc);
