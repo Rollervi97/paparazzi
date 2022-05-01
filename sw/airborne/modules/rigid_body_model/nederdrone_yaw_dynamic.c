@@ -121,7 +121,7 @@ static void send_nederdrone_yaw_dynamic(struct transport_tx *trans, struct link_
                                   &ND_pole, &g_prop, &g_servo,
                                   &alpha[0], &alpha[1], &alpha[2], &alpha[3], 
                                   &input_quantities[0], &input_quantities[1], &input_quantities[2], &input_quantities[3], 
-                                  &rate_filt_freq);
+                                  &rate_filt_freq, &Q_val, &R_11_val, &R_22_val);
 }
 
 #endif
@@ -354,6 +354,13 @@ void yaw_dynamic_run(void){
   update_butterworth_2_low_pass(&KF_meas, (rate[0]-rate[1]) * PERIODIC_FREQUENCY);
   Y[0] = yaw_rate_filt.o[0];
   Y[1] = KF_meas.o[0];
+
+  if (isnan(KF_pprz.Y[0]) || isnan(KF_pprz.Y[1])){
+    init_KF_pprz();
+    KF_pprz.X[0] = yaw_rate_filt.o[0];
+    KF_pprz.Y[0] = Y[0];
+    KF_pprz.Y[1] = Y[0];
+  }
   // linear_kalman_filter_predict(&KF_pprz, U);
   // linear_kalman_filter_update(&KF_pprz, Y);
 

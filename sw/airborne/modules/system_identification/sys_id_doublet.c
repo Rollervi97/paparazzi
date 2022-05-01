@@ -55,8 +55,8 @@ static struct doublet_t doublet;
 
 uint8_t doublet_active = false;
 uint8_t doublet_mode_3211 = false;
-uint8_t doublet_heading_reference_flag = false;
-float doublet_deg_reference_amplitude = 0.0;
+uint8_t doublet_heading_reference_flag = true;
+float doublet_deg_reference_amplitude = 30.0;
 
 uint8_t doublet_axis = 0;
 

@@ -59,6 +59,11 @@ extern uint8_t chirp_exponential;
 extern uint8_t chirp_heading_reference_flag;
 extern float chirp_deg_reference_amplitude;
 
+// extern uint8_t pseudo_controller_add_flag;
+// extern float pseudo_controller_add_amplitude;
+
+// extern uint8_t yaw_rate_add_flag;
+// extern float yaw_rate_add_amplitude;
 
 extern void sys_id_chirp_init(void);
 
@@ -80,5 +85,13 @@ extern uint8_t sys_id_chirp_running(void); // Check if the chirp is running or n
 // Add the current chirp values to the in_cmd values if motors_on is true
 extern void sys_id_chirp_add_values(bool motors_on, bool override_on, pprz_t in_cmd[]);
 extern void getChirpValue(float *destination);
+
+// extern float get_chirp_add_yaw_rate(void);
+// extern float get_chirp_add_pseudo_controller(void);
+
+// extern void sys_id_chirp_set_yaw_rate_add_flag(uint8_t dummy);
+// extern void sys_id_chirp_set_pseudo_control_add_flag(uint8_t dummy);
+// extern void sys_id_chirp_set_yaw_rate_add(float dummy);
+// extern void sys_id_chirp_set_pseudo_control_add(float dummy);
 
 #endif // SYS_ID_CHIRP_H

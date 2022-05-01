@@ -61,13 +61,21 @@ static struct chirp_t chirp;
 uint8_t chirp_active = FALSE;
 uint8_t chirp_axis = 0;
 pprz_t chirp_amplitude = 0;
-float chirp_noise_stdv_onaxis_ratio = 0.1;
-float chirp_noise_stdv_offaxis = 200;
-float chirp_fstart_hz = 1.0f;
-float chirp_fstop_hz = 5.0f;
-float chirp_length_s = 20;
-uint8_t chirp_heading_reference_flag = false;
-float chirp_deg_reference_amplitude = 0.0;
+float chirp_noise_stdv_onaxis_ratio = 0.0;
+float chirp_noise_stdv_offaxis = 0.0;
+float chirp_fstart_hz = 0.3f;
+float chirp_fstop_hz = 1.0f;
+float chirp_length_s = 60;
+
+uint8_t chirp_heading_reference_flag = true;
+float chirp_deg_reference_amplitude = 30.0;
+
+// uint8_t pseudo_controller_add_flag = false;
+// float pseudo_controller_add_amplitude  = 0.0;
+
+// uint8_t yaw_rate_add_flag = false;
+// float yaw_rate_add_amplitude  = 0.0;
+
 uint8_t chirp_fade_in = false;
 uint8_t chirp_exponential = false;
 
@@ -163,34 +171,25 @@ extern void sys_id_chirp_fstart_handler(float fstart)
   }
 }
 
-extern void sys_id_chirp_fstop_handler(float fstop)
-{
-  if (fstop > chirp_fstart_hz) {
-    chirp_fstop_hz = fstop;
-  }
-}
+// extern void sys_id_chirp_set_yaw_rate_add_flag(uint8_t dummy)
+// {
+//   yaw_rate_add_flag = dummy;
+// }
 
-extern void sys_id_chirp_fade_in_activate_handler(uint8_t fade_in)
-{
-  chirp_fade_in = fade_in;
-}
+// extern void sys_id_chirp_set_pseudo_control_add_flag(uint8_t dummy)
+// {
+//   pseudo_controller_add_flag = dummy;
+// }
 
-extern void sys_id_chirp_exponential_activate_handler(uint8_t exponential)
-{
-  chirp_exponential = exponential;
-}
+// extern void sys_id_chirp_set_yaw_rate_add(float dummy)
+// {
+//   yaw_rate_add_amplitude  = dummy;
+// }
 
-extern void sys_id_chirp_provide_heading_reference(uint8_t heading_ref_flag){
-    // printf("Chirp will act on the heading angle now\n");
-    chirp_heading_reference_flag = heading_ref_flag;
-}
-
-extern void sys_id_chirp_set_heading_reference_amplitude_deg(float h_ref_amp){
-    // printf("Max heading angle set\n");
-    chirp_deg_reference_amplitude = h_ref_amp;
-}
-
-
+// extern void sys_id_chirp_set_pseudo_control_add(float dummy)
+// {
+//   pseudo_controller_add_amplitude  = dummy;
+// }
 
 void sys_id_chirp_init(void)
 {
@@ -250,6 +249,26 @@ void sys_id_chirp_add_values(bool motors_on, bool override_on, pprz_t in_cmd[])
 #endif
 }
 
-// void GetChirpValue(float *destination){
-//     *destination = current_chirp_values[chirp_axis] * 1.0;
+// extern float get_chirp_add_yaw_rate(void)
+// {
+//   if (yaw_rate_add_flag && chirp_active)
+//   {
+//     return yaw_rate_add_amplitude * chirp.current_value;
+//   }
+//   else {
+//     return 0.0;
+//   }
 // }
+
+// extern float get_chirp_add_pseudo_controller(void)
+// {
+//   if (pseudo_controller_add_flag && chirp_active)
+//   {
+//     return pseudo_controller_add_amplitude * chirp.current_value;
+//   }
+//   else {
+//     return 0.0;
+//   }
+// }
+
+

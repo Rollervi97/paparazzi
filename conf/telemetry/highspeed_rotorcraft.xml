@@ -41,8 +41,8 @@
       <message name="AHRS_BIAS"                period="7.5"/>
       <message name="HOVER_LOOP"               period="0.3"/>
       <message name="GUIDANCE_H_REF_INT"       period="0.31"/>
-      <message name="GUIDANCE_INDI_HYBRID"     period="0.4"/>
-      <message name="HYBRID_GUIDANCE"          period="0.4"/>
+      <message name="GUIDANCE_INDI_HYBRID"     period="0.5"/>
+      <message name="HYBRID_GUIDANCE"          period="0.5"/>
       <message name="ESC"                      period="0.5"/>
       <message name="STAB_ATTITUDE_INDI"       period="0.5"/>
       <!-- <message name="PPM"                      period="0.05"/> -->
@@ -53,6 +53,7 @@
       <!--message name="WINDTUNNEL_MEAS"          period="0.1"/-->
       <message name="AHRS_REF_QUAT"            period="0.1"/>
       <message name="GPS"                      period="0.1" />
+      <message name="ROTORCRAFT_CMD"	       period="0.05"/>
 
     </mode>
 

@@ -44,6 +44,9 @@
 #include "filters/complementary_filter.h"
 #include "filters/notch_filter.h"
 #include "modules/rigid_body_model/nederdrone_yaw_dynamic.h"
+#include "modules/system_identification/sys_id_chirp.h"
+#include "modules/system_identification/sys_id_doublet.h"
+
 
 
 #if !defined(STABILIZATION_INDI_ACT_DYN_P) && !defined(STABILIZATION_INDI_ACT_DYN_Q) && !defined(STABILIZATION_INDI_ACT_DYN_R)
@@ -103,7 +106,7 @@
 #define STABILIZATION_INDI_FILT_CUTOFF_R 20.0
 #endif
 
-uint8_t use_complementary_feedback = true;
+uint8_t use_complementary_feedback = false;
 uint8_t high_freq_component_active = false;
 uint8_t use_LTI_acc = false;
 uint8_t NF_on = false;
@@ -116,7 +119,7 @@ float NF_freq = 9.75;
 float rigid_body_acc = 0.0;
 float KF_rigid_body_acc = 0.0;
 float old_r = 0.0;
-float NF_bandwidth = 0.5;
+float NF_bandwidth = 1;
 
 struct Int32Eulers stab_att_sp_euler;
 struct Int32Quat   stab_att_sp_quat;
@@ -193,7 +196,7 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
                                    &complementary_filter.HighFrequencyComponent,
                                    &complementary_filter.filter_output,
                                    &complementary_cross_freq,
-                                   &NF_freq, &NF_filtered_cmd_yaw,
+                                   &NF_freq, &NF_bandwidth, &NF_filtered_cmd_yaw,
                                    &use_LTI_acc,
                                    &use_complementary_feedback,
                                    &high_freq_component_active, 
@@ -554,10 +557,6 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
       indi.u_in.r = indi.u[2].o[0] + indi.du.r;
       
     }
-
-    
-    
-
     // only run the estimation if the commands are not zero.
     lms_estimation();
   }

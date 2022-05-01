@@ -265,10 +265,10 @@ static inline void linear_kalman_filter_predict_and_update(struct linear_kalman_
   float_vect_diff(err, err, err2, filter->m); // err = Y - C * X - D * U
   float_mat_vect_mul(dx_err, _K, err, filter->n, filter->m); // K * err
   float_vect_sum(filter->X, filter->X, dx_err, filter->n); // X + dx_err
-
-  float_mat_vect_mul(err, _C, filter->X, filter->m, filter->n);
-  float_mat_vect_mul(DU, _D, U, filter->m, filter->c);
-  float_vect_sum(filter->Y, err, DU, filter->m);
+  // Y = C * X + D * U
+  float_mat_vect_mul(err, _C, filter->X, filter->m, filter->n); // C * X
+  float_mat_vect_mul(DU, _D, U, filter->m, filter->c); // D * U
+  float_vect_sum(filter->Y, err, DU, filter->m); // C * X + D * U
 }
 /** Prediction step and update step for system with feedthrough matrix D taken from discrete Kalman
  * filter block in Simulink ('current estimate')
