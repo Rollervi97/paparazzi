@@ -129,6 +129,8 @@ struct SecondOrderNotchFilter NF;
 float NF_filtered_cmd_yaw = 0.0;
 // Butterworth2LowPass LowPassComplementary;
 
+float temp_rate_reference = 0.0;
+
 static struct FirstOrderLowPass rates_filt_fo[3];
 
 static inline void lms_estimation(void);
@@ -443,9 +445,11 @@ static inline void finite_difference(float output[3], float new[3], float old[3]
  */
 void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __attribute__((unused)))
 {
+  // addition for handling qualities performance assessment
+  rate_sp.r = rate_sp.r + get_chirp_add_yaw_rate();
+  
   //Propagate input filters
   //first order actuator dynamics
-  
   indi.u_act_dyn.p = indi.u_act_dyn.p + STABILIZATION_INDI_ACT_DYN_P * (indi.u_in.p - indi.u_act_dyn.p);
   indi.u_act_dyn.q = indi.u_act_dyn.q + STABILIZATION_INDI_ACT_DYN_Q * (indi.u_in.q - indi.u_act_dyn.q);
   indi.u_act_dyn.r = indi.u_act_dyn.r + STABILIZATION_INDI_ACT_DYN_R * (indi.u_in.r - indi.u_act_dyn.r);
@@ -511,7 +515,7 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   // Compute reference angular acceleration:
   indi.angular_accel_ref.p = (rate_sp.p - rates_filt.p) * indi.gains.rate.p;
   indi.angular_accel_ref.q = (rate_sp.q - rates_filt.q) * indi.gains.rate.q;
-  indi.angular_accel_ref.r = (rate_sp.r - rates_filt.r) * indi.gains.rate.r;
+  indi.angular_accel_ref.r = (rate_sp.r - rates_filt.r) * indi.gains.rate.r + get_chirp_add_pseudo_controller();
   
   
   //Increment in angular acceleration requires increment in control input
