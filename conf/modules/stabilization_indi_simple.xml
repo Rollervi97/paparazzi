@@ -58,11 +58,11 @@
   <settings>
     <dl_settings>
       <dl_settings name="indi">
-        <dl_setting var="indi.gains.att.p" min="0" step="1" max="2500" shortname="kp_p" param="STABILIZATION_INDI_REF_ERR_P" persistent="true" module="stabilization/stabilization_indi_simple"/>
+        <!-- <dl_setting var="indi.gains.att.p" min="0" step="1" max="2500" shortname="kp_p" param="STABILIZATION_INDI_REF_ERR_P" persistent="true" module="stabilization/stabilization_indi_simple"/>
         <dl_setting var="indi.gains.rate.p" min="0" step="0.1" max="100" shortname="kd_p" param="STABILIZATION_INDI_REF_RATE_P" persistent="true"/>
         <dl_setting var="indi.g1.p" min="0" step="0.001" max="10" shortname="ctl_eff_p" param="STABILIZATION_INDI_G1_P" persistent="true"/>
         <dl_setting var="indi.gains.att.q" min="0" step="1" max="2500" shortname="kp_q" param="STABILIZATION_INDI_REF_ERR_Q" persistent="true"/>
-        <dl_setting var="indi.gains.rate.q" min="0" step="0.1" max="100" shortname="kd_q" param="STABILIZATION_INDI_REF_RATE_P" persistent="true"/>
+        <dl_setting var="indi.gains.rate.q" min="0" step="0.1" max="100" shortname="kd_q" param="STABILIZATION_INDI_REF_RATE_P" persistent="true"/> -->
         <dl_setting var="indi.g1.q" min="0" step="0.001" max="10" shortname="ctl_eff_q" param="STABILIZATION_INDI_G1_Q" persistent="true"/>
         <dl_setting var="indi.gains.att.r" min="0" step="1" max="2500" shortname="kp_r" param="STABILIZATION_INDI_REF_ERR_R" persistent="true"/>
         <dl_setting var="indi.gains.rate.r" min="0" step="0.1" max="100" shortname="kd_r" param="STABILIZATION_INDI_REF_RATE_P" persistent="true"/>
@@ -80,6 +80,9 @@
         <dl_setting var="NF_freq" min="0.5" step="0.05" max="12.5"                  shortname="NF_freq" handler="reset_NF_freq" type="float" module="stabilization/stabilization_indi_simple"/>
         <dl_setting var="NF_on" min="0" step="1" max="1"                            shortname="NF_on" values="Inactive|active" type="bool" handler="NF_handler" module="stabilization/stabilization_indi_simple"/>
         <dl_setting var="KF_on" min="0" max="1" step="1"                            shortname="KF_on" values="Inactive|Active" type="bool" handler="KF_feedback_handler" module="stabilization/stabilization_indi_simple"/>
+        <dl_setting var="dist_length" min="0.0" step="0.5" max="30.0" shortname="D_L" handler="set_dist_length"   type="float" module="stabilization/stabilization_indi_simple"/>
+        <dl_setting var="dist_value" min="0.0" step="5" max="2000.0" shortname="D_V"   handler="set_dist_val"        type="float" module="stabilization/stabilization_indi_simple"/>
+        <dl_setting var="dist_on" min="0" max="1" step="1"                            shortname="dist_on" values="Inactive|Active" type="bool" handler="dist_on" module="stabilization/stabilization_indi_simple"/>
       </dl_settings>
     </dl_settings>
   </settings>

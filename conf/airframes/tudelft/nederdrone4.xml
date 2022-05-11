@@ -47,9 +47,11 @@ is initilized three times -->
       </module>
 
       <define name="RADIO_TH_HOLD"     value="RADIO_AUX1"/> <!-- Throttle hold in command laws -->
-      <define name="RADIO_FMODE"       value="RADIO_AUX2"/> <!-- Throttle curve select -->
+      <!-- <define name="RADIO_FMODE"       value="RADIO_AUX2"/> Throttle curve select -->
+      <define name="RADIO_DIST"        value="RADIO_AUX2"/> <!-- Throttle curve select -->
       <define name="RADIO_FBW_MODE"    value="RADIO_AUX3"/> <!-- Switch between AP and FBW control -->
       <define name="RADIO_KILL_SWITCH" value="RADIO_AUX1"/>
+      <define name="RADIO_ADD_DIST"    value="RADIO_AUX4"/> <!-- Add disturbance for disturbance rejection test -->
       <define name="TILT_TWIST_CTRL" value="TRUE"/>
       <!-- Use the external mag (not in NPS target as then it needs to listen to all) -->
       <define name="INS_EKF2_MAG_ID" value="MAG_LIS3MDL_SENDER_ID"/>
@@ -83,6 +85,8 @@ is initilized three times -->
     <module name="imu"           type="mpu6000"/>
     <module name="stabilization" type="indi_simple"/>
     <module name="stabilization" type="rate_indi"/>
+    <!-- <define name="ADD_DIST" value="dist_on" /> -->
+    <!-- <define name="DIST_VALUE" value="dist_value" /> -->
     
     <!-- <module name="ins"           type="ekf2" /> -->
     <!-- <module name="gps"           type="ublox"/> -->
@@ -220,14 +224,18 @@ is initilized three times -->
     <set servo="MOTOR_12"  value="($th_hold? -9600 : motor_mixing.commands[11])"/>
 
     <!-- Removed ApplyDiff for differential control -->
-    <set servo="AIL_1"     value="-2*@PITCH + (  2*@YAW)"/>
-    <set servo="AIL_2"     value="-2*@PITCH + (- 2*@YAW)"/>
-    <set servo="AIL_3"     value=" 2*@PITCH + (  2*@YAW)"/>
-    <set servo="AIL_4"     value=" 2*@PITCH + (- 2*@YAW)"/>
-    <set servo="FLAP_1"    value="-2*@PITCH + (  2*@YAW)"/>
-    <set servo="FLAP_2"    value="-2*@PITCH + (- 2*@YAW)"/>
-    <set servo="FLAP_3"    value=" 2*@PITCH + (  2*@YAW)"/>
-    <set servo="FLAP_4"    value=" 2*@PITCH + (- 2*@YAW)"/>
+    <!-- <let var="add_disturbance" value="LessThan(RadioControlValues(RADIO_ADD_DIST), -4800)" /> -->
+    <!-- <let var="add_disturbance" value="stabilization_indi_simple_get_dist_on()"/> -->
+    <!-- <let var="DIST_VALUE"      value="stabilization_indi_simple_get_dist_val()"/> -->
+
+    <set servo="AIL_1"     value="-2*@PITCH + (  2*@YAW+RadioControlValues(RADIO_DIST)/5) "/> 
+    <set servo="AIL_2"     value="-2*@PITCH + (- 2*@YAW-RadioControlValues(RADIO_DIST)/5) "/>
+    <set servo="AIL_3"     value=" 2*@PITCH + (  2*@YAW+RadioControlValues(RADIO_DIST)/5) "/>
+    <set servo="AIL_4"     value=" 2*@PITCH + (- 2*@YAW-RadioControlValues(RADIO_DIST)/5) "/>
+    <set servo="FLAP_1"    value="-2*@PITCH + (  2*@YAW+RadioControlValues(RADIO_DIST)/5) "/>
+    <set servo="FLAP_2"    value="-2*@PITCH + (- 2*@YAW-RadioControlValues(RADIO_DIST)/5) "/>
+    <set servo="FLAP_3"    value=" 2*@PITCH + (  2*@YAW+RadioControlValues(RADIO_DIST)/5) "/>
+    <set servo="FLAP_4"    value=" 2*@PITCH + (- 2*@YAW-RadioControlValues(RADIO_DIST)/5) "/>
   </command_laws>
 
   <section name="MISC">

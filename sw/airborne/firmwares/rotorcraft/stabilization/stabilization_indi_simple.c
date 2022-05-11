@@ -111,6 +111,7 @@ uint8_t high_freq_component_active = false;
 uint8_t use_LTI_acc = false;
 uint8_t NF_on = false;
 uint8_t KF_on = false;
+uint8_t dist_on = false;
 
 int flag = 0;
 // float new_r_dot_cutoff = COMPLEMENTARY_FILTER_LOW_PASS_R_DOT_CUTOFF;
@@ -130,6 +131,14 @@ float NF_filtered_cmd_yaw = 0.0;
 // Butterworth2LowPass LowPassComplementary;
 
 float temp_rate_reference = 0.0;
+
+float dist_start_time = 0.0;
+float dist_value = 0.0;
+float dist_length = 5.0;
+
+float disturbance_current_value = 0.0;
+
+float angular_rate_addition = 0.0;
 
 static struct FirstOrderLowPass rates_filt_fo[3];
 
@@ -188,7 +197,7 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
   // float g2_disp = indi.est.g2 * INDI_EST_SCALE;
 
   pprz_msg_send_STAB_ATTITUDE_INDI(trans, dev, AC_ID,
-                                   &indi.rate_d[0],
+                                    &indi.rate_d[0], // &angular_rate_addition, //
                                    &indi.rate_d[1],
                                    &indi.rate_d[2],
                                    &indi.angular_accel_ref.p,
@@ -203,7 +212,8 @@ static void send_att_indi(struct transport_tx *trans, struct link_device *dev)
                                    &use_complementary_feedback,
                                    &high_freq_component_active, 
                                    &NF_on,
-                                   &KF_on);
+                                   &KF_on, 
+                                   &dist_on, &dist_value);
                                   //  &g1_disp.p,
                                   //  &g1_disp.q,
                                   //  &g1_disp.r,
@@ -236,6 +246,15 @@ void stabilization_indi_init(void)
 #endif
 // printf("End initialization \n");
 }
+
+
+// bool stabilization_indi_simple_get_dist_on(){
+//   return dist_on;
+// }
+
+// int32_t stabilization_indi_simple_get_dist_val(){
+//   return (int32_t)dist_value;
+// }
 
 void indi_init_filters(void)
 { 
@@ -360,6 +379,28 @@ void stabilization_indi_simple_KF_feedback_handler(bool dummy_4)
   }
 }
 
+void stabilization_indi_simple_dist_on(bool dum)
+{
+  dist_on = dum;
+  if (dist_on)
+  {
+    dist_start_time = get_sys_time_float();
+  }
+  if (!dist_on)
+  {
+    dist_start_time = get_sys_time_float() - dist_length;
+  }
+}
+
+void stabilization_indi_simple_set_dist_val(float dum)
+{
+  dist_value = dum;
+}
+
+void stabilization_indi_simple_set_dist_length(float dum)
+{
+  dist_length = dum;
+}
 /**
  * @brief Set attitude quaternion setpoint from rpy
  *
@@ -447,7 +488,7 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
 {
   // addition for handling qualities performance assessment
   rate_sp.r = rate_sp.r + get_chirp_add_yaw_rate();
-  
+  angular_rate_addition = rate_sp.r;
   //Propagate input filters
   //first order actuator dynamics
   indi.u_act_dyn.p = indi.u_act_dyn.p + STABILIZATION_INDI_ACT_DYN_P * (indi.u_in.p - indi.u_act_dyn.p);
@@ -511,11 +552,11 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
   //This lets you impose a maximum yaw rate.
   BoundAbs(rate_sp.r, indi.attitude_max_yaw_rate);
   
-
+  float pseudo_crtl_chirp = get_chirp_add_pseudo_controller();
   // Compute reference angular acceleration:
   indi.angular_accel_ref.p = (rate_sp.p - rates_filt.p) * indi.gains.rate.p;
   indi.angular_accel_ref.q = (rate_sp.q - rates_filt.q) * indi.gains.rate.q;
-  indi.angular_accel_ref.r = (rate_sp.r - rates_filt.r) * indi.gains.rate.r + get_chirp_add_pseudo_controller();
+  indi.angular_accel_ref.r = (rate_sp.r - rates_filt.r) * indi.gains.rate.r + pseudo_crtl_chirp;
   
   
   //Increment in angular acceleration requires increment in control input
@@ -573,6 +614,16 @@ void stabilization_indi_rate_run(struct FloatRates rate_sp, bool in_flight __att
     indi.u_in.r = NF_filtered_cmd_yaw;
   }
 
+  if (dist_on && (get_sys_time_float()-dist_start_time < dist_length))
+  {
+    disturbance_current_value = dist_value;
+  }
+  else {
+    disturbance_current_value = 0.0;
+    stabilization_indi_simple_dist_on(false);
+  }
+  
+  // indi.u_in.r += disturbance_current_value;
   
 #if STABILIZATION_INDI_FULL_AUTHORITY
   Bound(indi.u_in.p, -9600, 9600);

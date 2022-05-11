@@ -63,18 +63,18 @@ uint8_t chirp_axis = 0;
 pprz_t chirp_amplitude = 0;
 float chirp_noise_stdv_onaxis_ratio = 0.0;
 float chirp_noise_stdv_offaxis = 0.0;
-float chirp_fstart_hz = 0.3f;
-float chirp_fstop_hz = 1.0f;
-float chirp_length_s = 60;
+float chirp_fstart_hz = 0.5f;
+float chirp_fstop_hz = 15.0f;
+float chirp_length_s = 20;
 
-uint8_t chirp_heading_reference_flag = true;
-float chirp_deg_reference_amplitude = 30.0;
+uint8_t chirp_heading_reference_flag = false;
+float chirp_deg_reference_amplitude = 5.0;
 
-uint8_t pseudo_controller_add_flag = false;
-float pseudo_controller_add_amplitude  = 0.0;
+uint8_t pseudo_controller_add_flag = true;
+float pseudo_controller_add_amplitude  = 0.3;
 
 uint8_t yaw_rate_add_flag = false;
-float yaw_rate_add_amplitude  = 0.0;
+float yaw_rate_add_amplitude  = 4.0;
 
 uint8_t chirp_fade_in = false;
 uint8_t chirp_exponential = false;

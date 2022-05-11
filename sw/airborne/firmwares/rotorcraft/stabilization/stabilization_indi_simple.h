@@ -46,6 +46,12 @@ extern uint8_t NF_on;
 extern float NF_freq;
 extern uint8_t KF_on;
 extern float NF_bandwidth;
+
+extern uint8_t dist_on;
+extern float dist_start_time;
+extern float dist_value;
+extern float dist_length;
+
 // extern float new_r_dot_cutoff;
 extern float complementary_cross_freq;
 extern float rigid_body_acc;
@@ -108,8 +114,15 @@ extern void stabilization_indi_simple_NF_handler(bool dummy_3);
 extern void stabilization_indi_simple_KF_feedback_handler(bool dummy_4);
 extern void stabilization_indi_simple_reset_NF_bandwidth(float newNFb);
 
+extern void stabilization_indi_simple_dist_on(bool dum);
+extern void stabilization_indi_simple_set_dist_val(float dum);
+extern void stabilization_indi_simple_set_dist_length(float dum);
+
 // extern void stabilization_indi_simple_reset_r_dot_filter_cutoff(float new_r_dot_cutoff);
 extern void stabilization_indi_simple_reset_complementary_cross_frequency(float new_ccf);
 extern void stabilization_indi_simple_reset_NF_freq(float newNFfreq);
+
+// extern bool stabilization_indi_simple_get_dist_on();
+// extern int32_t stabilization_indi_simple_get_dist_val();
 #endif /* STABILIZATION_INDI_SIMPLE_H */
 
